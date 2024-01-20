@@ -1,2 +1,2 @@
-def process_payment(amount):
-    return None
+def process_payment(amount) -> str:
+    return "APPROVED"
