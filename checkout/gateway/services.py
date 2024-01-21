@@ -45,7 +45,7 @@ def process_payment(request: PaymentRequest,
         payment_id=payment_id, request=request))
 
     transaction_response = processor.sale(
-        transaction=_map_request_to_adapter_transaction(
+        payment=_map_request_to_adapter_transaction(
             payment_id=payment_id, request=request))
 
     if transaction_response.status == adapters.TransactionStatus.APPROVED:

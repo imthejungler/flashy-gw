@@ -43,7 +43,7 @@ class TransactionResponse(pydantic.BaseModel):
 
 class CardNotPresentProvider(abc.ABC):
     @abc.abstractmethod
-    def sale(self, transaction: Transaction) -> TransactionResponse:
+    def sale(self, payment: Transaction) -> TransactionResponse:
         """
         Authorizes and captures a transaction in one step:
         - Validates the card data,
@@ -89,7 +89,7 @@ class CardNotPresentProvider(abc.ABC):
 
 
 class DefaultCardNotPresentProvider(CardNotPresentProvider):
-    def sale(self, transaction: Transaction) -> TransactionResponse:
+    def sale(self, payment: Transaction) -> TransactionResponse:
         pass
 
 

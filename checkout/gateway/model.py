@@ -22,16 +22,6 @@ class PendingReceipt(Receipt):
     post_time: int = 0
 
 
-class Payment(base_types.Aggregate):
-    merchant_id: str
-    payment_id: str
-    currency: money.Currency
-    total_amount: decimal.Decimal
-    tip: decimal.Decimal
-    taxes: List[money.Tax]
-    receipt: Receipt
-
-
 class PaymentStatus(enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
@@ -43,7 +33,14 @@ class NotPresentCard(base_types.ValueObjet):
     masked_pan: str
 
 
-class CardNotPresentPayment(Payment):
+class CardNotPresentPayment(base_types.Aggregate):
+    merchant_id: str
+    payment_id: str
+    currency: money.Currency
+    total_amount: decimal.Decimal
+    tip: decimal.Decimal
+    taxes: List[money.Tax]
+    receipt: Receipt
     status: PaymentStatus
     card: NotPresentCard
 
