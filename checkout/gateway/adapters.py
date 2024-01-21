@@ -1,11 +1,12 @@
 import abc
 import decimal
 import enum
-from typing import List
+from typing import List, Optional
 
 import pydantic
 
 from checkout.standard_types import money
+from checkout.gateway import model
 
 
 class Card(pydantic.BaseModel):
@@ -89,4 +90,34 @@ class CardNotPresentProvider(abc.ABC):
 
 class DefaultCardNotPresentProvider(CardNotPresentProvider):
     def sale(self, transaction: Transaction) -> TransactionResponse:
+        pass
+
+
+class CardNotPresentRepository(abc.ABC):
+
+    @abc.abstractmethod
+    def generate_id(self) -> str:
+        ...
+
+    @abc.abstractmethod
+    def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
+        ...
+
+    @abc.abstractmethod
+    def create_payment(self, payment: model.CardNotPresentPayment) -> None:
+        ...
+
+    @abc.abstractmethod
+    def update_payment(self, payment: model.CardNotPresentPayment) -> None:
+        ...
+
+
+class DefaultCardNotPresentRepository(CardNotPresentRepository):
+    def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
+        pass
+
+    def create_payment(self, payment: model.CardNotPresentPayment) -> None:
+        pass
+
+    def update_payment(self, payment: model.CardNotPresentPayment) -> None:
         pass
