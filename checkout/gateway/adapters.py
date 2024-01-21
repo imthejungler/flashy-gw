@@ -5,10 +5,11 @@ from typing import List, Optional
 
 import pydantic
 
-from checkout.standard_types import money
 from checkout.gateway import model
+from checkout.standard_types import money
 
 
+# CARD PROCESSING ADAPTER #########################################
 class Card(pydantic.BaseModel):
     cardholder_name: str
     expiration_month: int
@@ -93,7 +94,8 @@ class DefaultCardNotPresentProvider(CardNotPresentProvider):
         pass
 
 
-class CardNotPresentRepository(abc.ABC):
+# PAYMENT REPOSITORY #########################################
+class CardNotPresentPaymentRepository(abc.ABC):
 
     @abc.abstractmethod
     def generate_id(self) -> str:
@@ -112,7 +114,7 @@ class CardNotPresentRepository(abc.ABC):
         ...
 
 
-class DefaultCardNotPresentRepository(CardNotPresentRepository):
+class DefaultCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
     def generate_id(self) -> str:
         pass
 

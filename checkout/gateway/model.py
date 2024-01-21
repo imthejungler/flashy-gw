@@ -23,10 +23,10 @@ class PendingReceipt(Receipt):
 
 
 class PaymentStatus(enum.Enum):
-    PENDING = "PENDING"
-    APPROVED = "APPROVED"
-    REJECTED = "REJECTED"
-    VOIDED = "VOIDED"
+    PENDING = enum.auto()
+    APPROVED = enum.auto()
+    REJECTED = enum.auto()
+    VOIDED = enum.auto()
 
 
 class NotPresentCard(base_types.ValueObjet):

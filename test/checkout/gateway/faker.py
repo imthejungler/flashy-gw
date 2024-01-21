@@ -1,5 +1,4 @@
 import decimal
-import time
 from typing import Optional, Dict, List
 
 import pydantic
@@ -80,7 +79,7 @@ class StubRejectedTransactionCardNotPresentProvider(adapters.CardNotPresentProvi
         )
 
 
-class CardNotPresentRepository(adapters.CardNotPresentRepository):
+class CardNotPresentPaymentRepository(adapters.CardNotPresentPaymentRepository):
 
     def __init__(self, ids: List[str]) -> None:
         self.ids = ids

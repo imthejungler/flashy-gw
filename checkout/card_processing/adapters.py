@@ -6,9 +6,11 @@ from typing import List, Optional
 
 import pydantic
 
+from checkout.card_processing import model
 from checkout.standard_types import card, money
 
 
+# CARD INFO #########################################
 class CardInfo(pydantic.BaseModel):
     country: str
     franchise: card.Franchise
@@ -26,6 +28,7 @@ class DefaultCardInfoAdapter(CardInfoAdapter):
         pass
 
 
+# ACQUIRING PROCESSORS #########################################
 class FinancialMessage(pydantic.BaseModel):
     merchant_id: str
     currency: money.Currency
@@ -103,6 +106,7 @@ class NoAcquiringProcessorProviderAvailable(AcquiringProcessorProvider):
         )
 
 
+# ROUTER #########################################
 class TransactionPackage(pydantic.BaseModel):
     franchise: card.Franchise
 
@@ -115,4 +119,38 @@ class TransactionRouter(abc.ABC):
 
 class DefaultTransactionRouter(TransactionRouter):
     def get_acquiring_processing_providers(self, package: TransactionPackage) -> Iterator[AcquiringProcessorProvider]:
+        pass
+
+
+# CARD NOT PRESENT TRANSACTION REPOSITORY #########################################
+class CardNotPresentTransactionRepository(abc.ABC):
+
+    @abc.abstractmethod
+    def generate_id(self) -> str:
+        ...
+
+    @abc.abstractmethod
+    def find_by_id(self, transaction_id: str) -> Optional[model.CardNotPresentTransaction]:
+        ...
+
+    @abc.abstractmethod
+    def register_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
+        ...
+
+    @abc.abstractmethod
+    def update_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
+        ...
+
+
+class DefaultCardNotPresentTransactionRepository(CardNotPresentTransactionRepository):
+    def generate_id(self) -> str:
+        pass
+
+    def find_by_id(self, transaction_id: str) -> Optional[model.CardNotPresentTransaction]:
+        pass
+
+    def register_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
+        pass
+
+    def update_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
         pass

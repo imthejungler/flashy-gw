@@ -26,8 +26,8 @@ class PaymentRequest(pydantic.BaseModel):
 
 
 class PaymentStatus(enum.Enum):
-    APPROVED = "APPROVED"
-    REJECTED = "REJECTED"
+    APPROVED = enum.auto()
+    REJECTED = enum.auto()
 
 
 class PaymentResponse(pydantic.BaseModel):
@@ -37,7 +37,7 @@ class PaymentResponse(pydantic.BaseModel):
 
 
 def process_payment(request: PaymentRequest,
-                    repository: adapters.CardNotPresentRepository,
+                    repository: adapters.CardNotPresentPaymentRepository,
                     processor: adapters.CardNotPresentProvider) -> PaymentResponse:
     payment_id = repository.generate_id()
 
