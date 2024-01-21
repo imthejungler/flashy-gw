@@ -67,6 +67,10 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 The FastApi server will be running on [http://127.0.0.1:8000](http://127.0.0.1:8000) – feel free to change the port in `package.json` (you'll also need to update it in `next.config.js`).
 
+## Looking Forward
+### PCI ease of use
+Put the sensible files in a package where if changed need the special approval of one of the team members
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
