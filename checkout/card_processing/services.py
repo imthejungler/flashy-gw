@@ -1,7 +1,7 @@
 import decimal
 import enum
 from collections.abc import Iterator
-from typing import List
+from typing import List, Optional
 
 import pydantic
 
@@ -57,9 +57,11 @@ def process_sale(transaction: Transaction,
 def _process_transaction(
         processors: Iterator[adapters.AcquiringProcessorProvider],
         transaction: Transaction,
+        previous_result: Optional[adapters.FinancialMessageResult] = None,
         attempt: int = 0) -> TransactionResult:
     capture_message = _transaction_to_capture_message(transaction)
-    processor = next(processors, adapters.NoAcquiringProcessorProviderAvailable)
+    processor = next(processors,
+                     adapters.NoAcquiringProcessorProviderAvailable(last_financial_message_result=previous_result))
     result = processor.capture(message=capture_message)
     if isinstance(result, adapters.ApprovedCapture):
         """
@@ -78,7 +80,8 @@ def _process_transaction(
 
     if isinstance(result, adapters.RejectedCapture) and result.is_retryable:
         attempt = attempt + 1
-        return _process_transaction(processors=processors, transaction=transaction, attempt=attempt)
+        return _process_transaction(processors=processors, transaction=transaction, previous_result=result,
+                                    attempt=attempt)
 
     return TransactionResult(
         network=result.network.value,

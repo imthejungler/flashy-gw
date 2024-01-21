@@ -85,3 +85,10 @@ class StubRetryableApprovedTransactionRouter(adapters.TransactionRouter):
             self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
         yield StubRetryableRejectedAcquiringProcessorTransactionProvider()
         yield StubApprovedAcquiringProcessorTransactionProvider()
+
+
+class StubAllRetryableRejectedTransactionRouter(adapters.TransactionRouter):
+    def get_acquiring_processing_providers(
+            self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
+        yield StubRetryableRejectedAcquiringProcessorTransactionProvider()
+        yield StubRetryableRejectedAcquiringProcessorTransactionProvider()

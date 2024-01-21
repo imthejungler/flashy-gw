@@ -1,44 +1,28 @@
+import pytest
+
 from checkout.card_processing import services, adapters
 from test.checkout.card_processing import faker
 
 
-def test_should_approve_a_transaction_when_the_acquiring_processor_approves() -> None:
+@pytest.mark.parametrize(
+    "router, expected_attempts, expected_status",
+    [(faker.StubApprovedTransactionRouter(), 0, services.TransactionStatus.APPROVED),
+     (faker.StubRetryableApprovedTransactionRouter(), 1, services.TransactionStatus.APPROVED),
+     (faker.StubRejectedTransactionRouter(), 0, services.TransactionStatus.REJECTED),
+     (faker.StubRetryableRejectedTransactionRouter(), 1, services.TransactionStatus.REJECTED),
+     (faker.StubAllRetryableRejectedTransactionRouter(), 2, services.TransactionStatus.REJECTED),
+     ]
+)
+def test_should_process_transaction_accordingly(
+        router: adapters.TransactionRouter, expected_attempts: int,
+        expected_status: services.TransactionStatus) -> None:
     transaction = faker.TransactionFake.fake()
     transaction_response = services.process_sale(
         transaction=transaction,
-        router=faker.StubApprovedTransactionRouter()
+        router=router
     )
-    assert transaction_response.status == services.TransactionStatus.APPROVED
-
-
-def test_should_reject_a_transaction_when_the_acquiring_processor_rejects() -> None:
-    transaction = faker.TransactionFake.fake()
-    transaction_response = services.process_sale(
-        transaction=transaction,
-        router=faker.StubRejectedTransactionRouter()
-    )
-    assert transaction_response.status == services.TransactionStatus.REJECTED
-    assert transaction_response.attempts == 0
-
-
-def test_should_reject_and_retry_a_transaction_when_id_rejected_by_one_processor_but_both_rejected() -> None:
-    transaction = faker.TransactionFake.fake()
-    transaction_response = services.process_sale(
-        transaction=transaction,
-        router=faker.StubRetryableRejectedTransactionRouter()
-    )
-    assert transaction_response.status == services.TransactionStatus.REJECTED
-    assert transaction_response.attempts == 1
-
-
-def test_should_reject_and_retry_a_transaction_when_id_rejected_by_one_processor_and_the_last_approved() -> None:
-    transaction = faker.TransactionFake.fake()
-    transaction_response = services.process_sale(
-        transaction=transaction,
-        router=faker.StubRetryableApprovedTransactionRouter()
-    )
-    assert transaction_response.status == services.TransactionStatus.APPROVED
-    assert transaction_response.attempts == 1
+    assert transaction_response.status == expected_status
+    assert transaction_response.attempts == expected_attempts
 
 
 def test_franchise_not_supported() -> None:

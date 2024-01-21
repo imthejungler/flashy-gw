@@ -1,8 +1,8 @@
 import abc
 import decimal
 import enum
-from collections.abc import Generator, Iterable, Iterator
-from typing import List
+from collections.abc import Iterator
+from typing import List, Optional
 
 import pydantic
 
@@ -81,8 +81,26 @@ class CKOAcquiringProcessorProvider(AcquiringProcessorProvider):
 
 
 class NoAcquiringProcessorProviderAvailable(AcquiringProcessorProvider):
+
+    def __init__(self, last_financial_message_result: Optional[FinancialMessageResult] = None) -> None:
+        self._last_result: FinancialMessageResult = last_financial_message_result
+        if last_financial_message_result:
+            self._last_result = RejectedCapture(
+                network=last_financial_message_result.network,
+                response_code=last_financial_message_result.response_code,
+                response_message=last_financial_message_result.response_message,
+                interchange_rate=last_financial_message_result.interchange_rate,
+                is_retryable=False
+            )
+
     def capture(self, message: CaptureMessage) -> FinancialMessageResult:
-        pass
+        return self._last_result if self._last_result else RejectedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="F99",
+            response_message="No Acquiring Processor Available",
+            interchange_rate=decimal.Decimal("0.0"),
+            is_retryable=False
+        )
 
 
 class TransactionPackage(pydantic.BaseModel):

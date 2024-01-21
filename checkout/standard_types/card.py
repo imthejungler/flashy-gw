@@ -18,3 +18,4 @@ class PAN:
 class AcquiringNetwork(enum.Enum):
     CKO = enum.auto()
     PRO = enum.auto()
+    NONE = enum.auto()
