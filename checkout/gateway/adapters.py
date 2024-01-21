@@ -104,20 +104,23 @@ class CardNotPresentRepository(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def create_payment(self, payment: model.CardNotPresentPayment) -> None:
+    def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         ...
 
     @abc.abstractmethod
-    def update_payment(self, payment: model.CardNotPresentPayment) -> None:
+    def update_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         ...
 
 
 class DefaultCardNotPresentRepository(CardNotPresentRepository):
+    def generate_id(self) -> str:
+        pass
+
     def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
         pass
 
-    def create_payment(self, payment: model.CardNotPresentPayment) -> None:
+    def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         pass
 
-    def update_payment(self, payment: model.CardNotPresentPayment) -> None:
+    def update_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         pass

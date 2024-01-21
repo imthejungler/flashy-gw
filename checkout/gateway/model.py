@@ -1,9 +1,25 @@
 import decimal
 import enum
-import time
 from typing import List
 
-from checkout.standard_types import base_types, money, card
+from checkout.standard_types import base_types, money, helpers
+
+
+class Receipt(base_types.ValueObjet):
+    post_time: int
+
+
+class ApprovalReceipt(Receipt):
+    approval_number: str
+
+
+class RejectionReceipt(Receipt):
+    rejection_code: str
+    rejection_message: str
+
+
+class PendingReceipt(Receipt):
+    post_time: int = 0
 
 
 class Payment(base_types.Aggregate):
@@ -13,6 +29,7 @@ class Payment(base_types.Aggregate):
     total_amount: decimal.Decimal
     tip: decimal.Decimal
     taxes: List[money.Tax]
+    receipt: Receipt
 
 
 class PaymentStatus(enum.Enum):
@@ -29,6 +46,21 @@ class NotPresentCard(base_types.ValueObjet):
 class CardNotPresentPayment(Payment):
     status: PaymentStatus
     card: NotPresentCard
+
+    def approve(self, approval_number: str) -> None:
+        self.status = PaymentStatus.APPROVED
+        self.receipt = ApprovalReceipt(
+            post_time=helpers.time_ns(),
+            approval_number=approval_number
+        )
+
+    def reject(self, rejection_code: str, rejection_message: str) -> None:
+        self.status = PaymentStatus.REJECTED
+        self.receipt = RejectionReceipt(
+            post_time=helpers.time_ns(),
+            rejection_code=rejection_code,
+            rejection_message=rejection_message
+        )
 
     @classmethod
     def create(
@@ -52,5 +84,6 @@ class CardNotPresentPayment(Payment):
             status=PaymentStatus.PENDING,
             card=NotPresentCard(
                 masked_pan=card_masked_pan
-            )
+            ),
+            receipt=PendingReceipt()
         )

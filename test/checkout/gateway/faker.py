@@ -1,11 +1,12 @@
 import decimal
+import time
 from typing import Optional, Dict, List
 
 import pydantic
 
 from checkout.gateway import adapters, model
 from checkout.gateway import services
-from checkout.standard_types import money, helpers
+from checkout.standard_types import money
 
 
 class PaymentRequestFaker:
@@ -91,22 +92,32 @@ class CardNotPresentRepository(adapters.CardNotPresentRepository):
     def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
         return self.payments.get(payment_id)
 
-    def create_payment(self, payment: model.CardNotPresentPayment) -> None:
+    def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         self.payments[payment.payment_id] = payment
+        return payment
 
-    def update_payment(self, payment: model.CardNotPresentPayment) -> None:
+    def update_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         self.payments[payment.payment_id] = payment
+        return payment
 
 
-class StubPendingCardNotPresentPayment:
+class StubApprovedCardNotPresentPayment:
     @staticmethod
-    def with_payment_id_and_merchant_id(payment_id: str, merchant_id: str) -> model.CardNotPresentPayment:
-        return model.CardNotPresentPayment.create(
+    def with_attrs(
+            payment_id: str, merchant_id: str, approval_number: str, time_ns: int) -> model.CardNotPresentPayment:
+        return model.CardNotPresentPayment(
             merchant_id=merchant_id,
             payment_id=payment_id,
             currency=money.Currency.EUR,
             total_amount=decimal.Decimal("100.00"),
             tip=decimal.Decimal("0"),
             taxes=[],
-            card_masked_pan="123456******1234"
+            card=model.NotPresentCard(
+                masked_pan="123456******1234"
+            ),
+            status=model.PaymentStatus.APPROVED,
+            receipt=model.ApprovalReceipt(
+                post_time=time_ns,
+                approval_number=approval_number
+            )
         )

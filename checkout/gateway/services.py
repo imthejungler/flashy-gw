@@ -41,7 +41,7 @@ def process_payment(request: PaymentRequest,
                     processor: adapters.CardNotPresentProvider) -> PaymentResponse:
     payment_id = repository.generate_id()
 
-    repository.create_payment(payment=_map_request_to_model(
+    payment = repository.create_payment(payment=_map_request_to_model(
         payment_id=payment_id, request=request))
 
     transaction_response = processor.sale(
@@ -49,12 +49,17 @@ def process_payment(request: PaymentRequest,
             payment_id=payment_id, request=request))
 
     if transaction_response.status == adapters.TransactionStatus.APPROVED:
+        payment.approve(approval_number=transaction_response.approval_number)
+        repository.update_payment(payment=payment)
         return PaymentResponse(
             payment_id=payment_id,
             approval_number=transaction_response.approval_number,
             status=PaymentStatus.APPROVED
         )
 
+    payment.reject(rejection_code=transaction_response.response_code,
+                   rejection_message=transaction_response.response_message)
+    repository.update_payment(payment=payment)
     return PaymentResponse(
         payment_id=payment_id,
         approval_number=transaction_response.approval_number,
