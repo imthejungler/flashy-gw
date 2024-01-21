@@ -16,10 +16,12 @@ from test.checkout.card_processing import faker
 def test_should_process_transaction_accordingly(
         router: adapters.TransactionRouter, expected_attempts: int,
         expected_status: services.TransactionStatus) -> None:
-    transaction = faker.TransactionFake.fake()
+    request = faker.TransactionFake.fake()
     transaction_response = services.process_sale(
-        transaction=transaction,
-        router=router
+        request=request,
+        router=router,
+        account_range_provider=faker.StubAccountRangeProvider(),
+        repo=faker.FakeCardNotPresentTransactionRepository(ids=["1", "2", "3"])
     )
     assert transaction_response.status == expected_status
     assert transaction_response.attempts == expected_attempts

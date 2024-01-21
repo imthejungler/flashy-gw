@@ -79,7 +79,7 @@ class StubRejectedTransactionCardNotPresentProvider(adapters.CardNotPresentProvi
         )
 
 
-class CardNotPresentPaymentRepository(adapters.CardNotPresentPaymentRepository):
+class FakeCardNotPresentPaymentRepository(adapters.CardNotPresentPaymentRepository):
 
     def __init__(self, ids: List[str]) -> None:
         self.ids = ids

@@ -1,15 +1,19 @@
 import decimal
 from collections.abc import Iterator
 from datetime import datetime
+from typing import Optional, Dict, List
 
-from checkout.card_processing import services, adapters
+import pydantic
+
+from checkout.card_processing import services, adapters, model
+from checkout.card_processing.adapters import PANInfo
 from checkout.standard_types import money, card
 
 
 class TransactionFake:
     @staticmethod
-    def fake() -> services.Transaction:
-        return services.Transaction(
+    def fake() -> services.TransactionRequest:
+        return services.TransactionRequest(
             merchant_id="fake-merchant-id",
             merchant_economic_activity="fake-merchant-economic-activity",
             client_id="fake-client-id",
@@ -28,6 +32,7 @@ class TransactionFake:
         )
 
 
+# PROCESSOR #########################################
 class StubApprovedAcquiringProcessorTransactionProvider(adapters.AcquiringProcessorProvider):
     def capture(self, message: adapters.CaptureMessage) -> adapters.FinancialMessageResult:
         return adapters.ApprovedCapture(
@@ -61,6 +66,8 @@ class StubRetryableRejectedAcquiringProcessorTransactionProvider(adapters.Acquir
         )
 
 
+# ROUTER #########################################
+
 class StubApprovedTransactionRouter(adapters.TransactionRouter):
     def get_acquiring_processing_providers(
             self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
@@ -92,3 +99,34 @@ class StubAllRetryableRejectedTransactionRouter(adapters.TransactionRouter):
             self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
         yield StubRetryableRejectedAcquiringProcessorTransactionProvider()
         yield StubRetryableRejectedAcquiringProcessorTransactionProvider()
+
+
+# REPOSITORY #########################################
+class StubAccountRangeProvider(adapters.AccountRangeProvider):
+    def get_pan_information(self, pan: pydantic.SecretStr) -> PANInfo:
+        return PANInfo(
+            country="FR",
+            category="GOLD",
+            franchise="MASTER_CARD"
+        )
+
+
+class FakeCardNotPresentTransactionRepository(adapters.CardNotPresentTransactionRepository):
+
+    def __init__(self, ids: List[str]) -> None:
+        self.ids = ids
+        self.transaction: Dict[str, model.CardNotPresentTransaction] = {}
+
+    def generate_id(self) -> str:
+        return self.ids.pop()
+
+    def find_by_id(self, transaction_id: str) -> Optional[model.CardNotPresentTransaction]:
+        return self.transaction.get(transaction_id)
+
+    def register_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
+        self.transaction[transaction.transaction_id] = transaction
+        return transaction
+
+    def update_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
+        self.transaction[transaction.transaction_id] = transaction
+        return transaction

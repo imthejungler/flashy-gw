@@ -44,21 +44,6 @@ class CardNotPresentPayment(base_types.Aggregate):
     status: PaymentStatus
     card: NotPresentCard
 
-    def approve(self, approval_number: str) -> None:
-        self.status = PaymentStatus.APPROVED
-        self.receipt = ApprovalReceipt(
-            post_time=helpers.time_ns(),
-            approval_number=approval_number
-        )
-
-    def reject(self, rejection_code: str, rejection_message: str) -> None:
-        self.status = PaymentStatus.REJECTED
-        self.receipt = RejectionReceipt(
-            post_time=helpers.time_ns(),
-            rejection_code=rejection_code,
-            rejection_message=rejection_message
-        )
-
     @classmethod
     def create(
             cls,
@@ -83,4 +68,19 @@ class CardNotPresentPayment(base_types.Aggregate):
                 masked_pan=card_masked_pan
             ),
             receipt=PendingReceipt()
+        )
+
+    def approve(self, approval_number: str) -> None:
+        self.status = PaymentStatus.APPROVED
+        self.receipt = ApprovalReceipt(
+            post_time=helpers.time_ns(),
+            approval_number=approval_number
+        )
+
+    def reject(self, rejection_code: str, rejection_message: str) -> None:
+        self.status = PaymentStatus.REJECTED
+        self.receipt = RejectionReceipt(
+            post_time=helpers.time_ns(),
+            rejection_code=rejection_code,
+            rejection_message=rejection_message
         )

@@ -83,7 +83,7 @@ class CKOAcquiringProcessorProvider(AcquiringProcessorProvider):
         pass
 
 
-class NoAcquiringProcessorProviderAvailable(AcquiringProcessorProvider):
+class NoProcessorAvailable(AcquiringProcessorProvider):
 
     def __init__(self, last_financial_message_result: Optional[FinancialMessageResult] = None) -> None:
         self._last_result: FinancialMessageResult = last_financial_message_result
@@ -153,4 +153,21 @@ class DefaultCardNotPresentTransactionRepository(CardNotPresentTransactionReposi
         pass
 
     def update_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
+        pass
+
+
+class PANInfo(pydantic.BaseModel):
+    country: str
+    category: str
+    franchise: str
+
+
+class AccountRangeProvider(abc.ABC):
+    @abc.abstractmethod
+    def get_pan_information(self, pan: pydantic.SecretStr) -> PANInfo:
+        ...
+
+
+class DefaultAccountRangeProvider(AccountRangeProvider):
+    def get_pan_information(self, pan: pydantic.SecretStr) -> PANInfo:
         pass

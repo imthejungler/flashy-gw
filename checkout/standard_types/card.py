@@ -5,8 +5,9 @@ _LAST_DIGITS: int = 4
 
 
 class Franchise(enum.Enum):
-    VISA = "VISA"
-    MASTER_CARD = "VISA"
+    VISA = enum.auto()
+    MASTER_CARD = enum.auto()
+    UNRECOGNIZED = enum.auto()
 
 
 class PAN:
