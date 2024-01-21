@@ -12,7 +12,7 @@ class TransactionFake:
     def fake() -> services.Transaction:
         return services.Transaction(
             merchant_id="fake-merchant-id",
-            merchant_economic_activity="fake-merchant-economic-activity"    ,
+            merchant_economic_activity="fake-merchant-economic-activity",
             client_id="fake-client-id",
             client_reference_id="fake-client-reference-id",
             currency=money.Currency.EUR,
@@ -40,7 +40,24 @@ class StubApprovedAcquiringProcessorTransactionProvider(adapters.AcquiringProces
         )
 
 
+class StubRejectedAcquiringProcessorTransactionProvider(adapters.AcquiringProcessorProvider):
+    def capture(self, message: adapters.CaptureMessage) -> adapters.FinancialMessageResult:
+        return adapters.RejectedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="00",
+            response_message="Approved or completed successfully",
+            interchange_rate=decimal.Decimal("0.10"),
+            is_retryable=False
+        )
+
+
 class StubApprovedTransactionRouter(adapters.TransactionRouter):
     def get_acquiring_processing_providers(
             self, package: adapters.TransactionPackage) -> List[adapters.AcquiringProcessorProvider]:
         return [StubApprovedAcquiringProcessorTransactionProvider()]
+
+
+class StubRejectedTransactionRouter(adapters.TransactionRouter):
+    def get_acquiring_processing_providers(
+            self, package: adapters.TransactionPackage) -> List[adapters.AcquiringProcessorProvider]:
+        return [StubRejectedAcquiringProcessorTransactionProvider()]

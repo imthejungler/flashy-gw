@@ -49,18 +49,7 @@ def process_sale(transaction: Transaction,
     processors = router.get_acquiring_processing_providers(
         package=adapters.TransactionPackage(franchise=card.Franchise.VISA))
 
-    capture_message = adapters.CaptureMessage(
-        merchant_id=transaction.merchant_id,
-        currency=transaction.currency,
-        total_amount=transaction.total_amount,
-        tip=transaction.tip,
-        taxes=transaction.taxes,
-        cardholder_name=transaction.card.cardholder_name,
-        expiration_month=transaction.card.expiration_month,
-        expiration_year=transaction.card.expiration_year,
-        pan=transaction.card.pan.get_secret_value(),
-        cvv=transaction.card.cvv.get_secret_value(),
-    )
+    capture_message = _transaction_to_capture_message(transaction)
     for processor in processors:
         result = processor.capture(message=capture_message)
         if isinstance(result, adapters.ApprovedCapture):
@@ -76,12 +65,26 @@ def process_sale(transaction: Transaction,
                 approval_code=result.approval_code,
                 status=TransactionStatus.APPROVED
             )
-        # if message_response.status is adapters.FinancialMessageStatus.REJECTED:
-        #     return TransactionResult(
-        #         network=message_response.network.value,
-        #         response_code=message_response.response_code,
-        #         response_message=message_response.response_message,
-        #         approval_number="",
-        #         status=TransactionStatus.REJECTED
-        #     )
-        # if not message_response.is_retryable
+
+        return TransactionResult(
+            network=result.network.value,
+            response_code=result.response_code,
+            response_message=result.response_message,
+            status=TransactionStatus.REJECTED,
+            approval_code=""
+        )
+
+
+def _transaction_to_capture_message(transaction: Transaction) -> adapters.CaptureMessage:
+    return adapters.CaptureMessage(
+        merchant_id=transaction.merchant_id,
+        currency=transaction.currency,
+        total_amount=transaction.total_amount,
+        tip=transaction.tip,
+        taxes=transaction.taxes,
+        cardholder_name=transaction.card.cardholder_name,
+        expiration_month=transaction.card.expiration_month,
+        expiration_year=transaction.card.expiration_year,
+        pan=transaction.card.pan.get_secret_value(),
+        cvv=transaction.card.cvv.get_secret_value(),
+    )
