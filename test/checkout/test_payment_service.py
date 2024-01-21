@@ -12,7 +12,7 @@ def test_should_approve_a_payment_when_the_card_processor_approves_the_transacti
     )
     payment_response = service.process_payment(
         request=request,
-        card_processing_adapter=adapter.FakeCardProcessingAdapter(
+        card_processing_adapter=faker.StubApprovedTransactionCardNotPresentProvider(
             approval_number="000000123456"
         ))
     expected_response = faker.PaymentResponseFaker.with_approved_transaction_and_approval_number(
@@ -20,13 +20,23 @@ def test_should_approve_a_payment_when_the_card_processor_approves_the_transacti
     assert payment_response == expected_response
 
 
-def test_should_reject_a_payment_when_the_merchant_is_valid() -> None:
+def test_should_reject_a_payment_when_the_card_processor_rejects_the_transaction() -> None:
     request = faker.PaymentRequestFaker.with_amount_and_currency(
         total_amount=decimal.Decimal("100.00"),
         currency=money.Currency.EUR
     )
     payment_response = service.process_payment(
         request=request,
-        card_processing_adapter=adapter.FakeCardProcessingAdapter())
+        card_processing_adapter=faker.StubRejectedTransactionCardNotPresentProvider())
     expected_response = faker.PaymentResponseFaker.with_rejected_transaction()
     assert payment_response == expected_response
+
+
+# def test_should_save_the_transaction_result() -> None:
+#     request = faker.PaymentRequestFaker.with_amount_and_currency(
+#         total_amount=decimal.Decimal("100.00"),
+#         currency=money.Currency.EUR
+#     )
+
+
+

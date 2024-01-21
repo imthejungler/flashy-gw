@@ -38,7 +38,7 @@ class PaymentResponse(pydantic.BaseModel):
 
 
 def process_payment(request: PaymentRequest,
-                    card_processing_adapter: adapter.CardProcessingAdapter) -> PaymentResponse:
+                    card_processing_adapter: adapter.CardNotPresentProvider) -> PaymentResponse:
     payment_id = IDGenerator.uuid(prefix="CP" + request.merchant_id)
     transaction_response = card_processing_adapter.sale(
         transaction=adapter.Transaction(

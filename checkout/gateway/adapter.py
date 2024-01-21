@@ -40,7 +40,7 @@ class TransactionResponse(pydantic.BaseModel):
     status: TransactionStatus
 
 
-class CardProcessingAdapter(abc.ABC):
+class CardNotPresentProvider(abc.ABC):
     @abc.abstractmethod
     def sale(self, transaction: Transaction) -> TransactionResponse:
         """
@@ -87,25 +87,6 @@ class CardProcessingAdapter(abc.ABC):
     #     """
 
 
-class FakeCardProcessingAdapter(CardProcessingAdapter):
-
-    def __init__(self,
-                 approval_number: str = "",
-                 network: str = "CBK") -> None:
-        self.approval_number = approval_number
-        self.network = network
-
-    def sale(self, transaction: Transaction) -> TransactionResponse:
-        return TransactionResponse(
-            transaction_id="fake-transaction-id",
-            network=self.network,
-            response_code="00",
-            response_message="Approved or completed successfully",
-            status=TransactionStatus.APPROVED,
-            approval_number=self.approval_number,
-        )
-
-
-class DefaultCardProcessingAdapter(CardProcessingAdapter):
+class DefaultCardNotPresentProvider(CardNotPresentProvider):
     def sale(self, transaction: Transaction) -> TransactionResponse:
         pass
