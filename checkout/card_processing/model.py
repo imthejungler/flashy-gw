@@ -8,8 +8,9 @@ from checkout.standard_types import money
 
 
 class TransactionTypes(enum.Enum):
-    SALE = enum.auto()
     AUTHORIZATION = enum.auto()
+    CAPTURE = enum.auto()
+    REVERSAL = enum.auto()
     VOID = enum.auto()
 
 
@@ -24,13 +25,23 @@ class PCIComplianceCard(pydantic.BaseModel):
     ttl: int
 
 
+class TransactionStatus(enum.Enum):
+    PENDING = enum.auto()
+    APPROVED = enum.auto()
+    REJECTED = enum.auto()
+
+
 class CardNotPresentTransaction(pydantic.BaseModel):
-    client_id: str
-    client_reference: str
     transaction_id: str
+    client_id: str
+    client_reference_id: str
+    merchant_id: str
+    merchant_economic_activity: str
     transaction_type: TransactionTypes
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
     taxes: List[money.Tax]
     card: PCIComplianceCard
+    status: TransactionStatus
+

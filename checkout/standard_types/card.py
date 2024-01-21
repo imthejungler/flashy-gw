@@ -13,3 +13,8 @@ class PAN:
     @staticmethod
     def mask(pan: str, bin_len: int = 6) -> str:
         return pan[:bin_len] + "*" * (len(pan) - bin_len - _LAST_DIGITS) + pan[-_LAST_DIGITS:]
+
+
+class AcquiringNetwork(enum.Enum):
+    CKO = enum.auto()
+    PRO = enum.auto()

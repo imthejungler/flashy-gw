@@ -69,7 +69,8 @@ The FastApi server will be running on [http://127.0.0.1:8000](http://127.0.0.1:8
 
 ## Looking Forward
 ### Things to improve
-- The mapping of the network response could be to direct, so a mapper to standarize the response message could improve readibility
+- The mapping of the network response could be to direct, so a mapper to standarize the response message could improve readability.
+- I'll creat an `adapters` package and separate each adapter in its own module so evolution won't obstruct readability.
 
 ## Learn More
 
