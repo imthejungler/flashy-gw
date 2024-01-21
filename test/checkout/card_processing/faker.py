@@ -1,7 +1,6 @@
 import decimal
-import uuid
+from collections.abc import Iterator
 from datetime import datetime
-from typing import List
 
 from checkout.card_processing import services, adapters
 from checkout.standard_types import money, card
@@ -44,20 +43,45 @@ class StubRejectedAcquiringProcessorTransactionProvider(adapters.AcquiringProces
     def capture(self, message: adapters.CaptureMessage) -> adapters.FinancialMessageResult:
         return adapters.RejectedCapture(
             network=card.AcquiringNetwork.CKO,
-            response_code="00",
-            response_message="Approved or completed successfully",
+            response_code="43",
+            response_message="Stolen card, pick up",
             interchange_rate=decimal.Decimal("0.10"),
             is_retryable=False
         )
 
 
+class StubRetryableRejectedAcquiringProcessorTransactionProvider(adapters.AcquiringProcessorProvider):
+    def capture(self, message: adapters.CaptureMessage) -> adapters.FinancialMessageResult:
+        return adapters.RejectedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="19",
+            response_message="Re-enter transaction",
+            interchange_rate=decimal.Decimal("0.10"),
+            is_retryable=True
+        )
+
+
 class StubApprovedTransactionRouter(adapters.TransactionRouter):
     def get_acquiring_processing_providers(
-            self, package: adapters.TransactionPackage) -> List[adapters.AcquiringProcessorProvider]:
-        return [StubApprovedAcquiringProcessorTransactionProvider()]
+            self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
+        yield StubApprovedAcquiringProcessorTransactionProvider()
 
 
 class StubRejectedTransactionRouter(adapters.TransactionRouter):
     def get_acquiring_processing_providers(
-            self, package: adapters.TransactionPackage) -> List[adapters.AcquiringProcessorProvider]:
-        return [StubRejectedAcquiringProcessorTransactionProvider()]
+            self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
+        yield StubRejectedAcquiringProcessorTransactionProvider()
+
+
+class StubRetryableRejectedTransactionRouter(adapters.TransactionRouter):
+    def get_acquiring_processing_providers(
+            self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
+        yield StubRetryableRejectedAcquiringProcessorTransactionProvider()
+        yield StubRejectedAcquiringProcessorTransactionProvider()
+
+
+class StubRetryableApprovedTransactionRouter(adapters.TransactionRouter):
+    def get_acquiring_processing_providers(
+            self, package: adapters.TransactionPackage) -> Iterator[adapters.AcquiringProcessorProvider]:
+        yield StubRetryableRejectedAcquiringProcessorTransactionProvider()
+        yield StubApprovedAcquiringProcessorTransactionProvider()

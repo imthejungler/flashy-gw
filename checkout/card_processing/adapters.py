@@ -1,6 +1,7 @@
 import abc
 import decimal
 import enum
+from collections.abc import Generator, Iterable, Iterator
 from typing import List
 
 import pydantic
@@ -79,16 +80,21 @@ class CKOAcquiringProcessorProvider(AcquiringProcessorProvider):
         pass
 
 
+class NoAcquiringProcessorProviderAvailable(AcquiringProcessorProvider):
+    def capture(self, message: CaptureMessage) -> FinancialMessageResult:
+        pass
+
+
 class TransactionPackage(pydantic.BaseModel):
     franchise: card.Franchise
 
 
 class TransactionRouter(abc.ABC):
     @abc.abstractmethod
-    def get_acquiring_processing_providers(self, package: TransactionPackage) -> List[AcquiringProcessorProvider]:
+    def get_acquiring_processing_providers(self, package: TransactionPackage) -> Iterator[AcquiringProcessorProvider]:
         ...
 
 
 class DefaultTransactionRouter(TransactionRouter):
-    def get_acquiring_processing_providers(self, package: TransactionPackage) -> List[AcquiringProcessorProvider]:
+    def get_acquiring_processing_providers(self, package: TransactionPackage) -> Iterator[AcquiringProcessorProvider]:
         pass

@@ -1,5 +1,6 @@
 import decimal
 import enum
+from collections.abc import Iterator
 from typing import List
 
 import pydantic
@@ -42,6 +43,7 @@ class TransactionResult(pydantic.BaseModel):
     response_message: str
     approval_code: str
     status: TransactionStatus
+    attempts: int = 0
 
 
 def process_sale(transaction: Transaction,
@@ -49,30 +51,43 @@ def process_sale(transaction: Transaction,
     processors = router.get_acquiring_processing_providers(
         package=adapters.TransactionPackage(franchise=card.Franchise.VISA))
 
-    capture_message = _transaction_to_capture_message(transaction)
-    for processor in processors:
-        result = processor.capture(message=capture_message)
-        if isinstance(result, adapters.ApprovedCapture):
-            """
-            I used this approach only here and not in the response of the service
-            because normally its going to return to a REST API which would make
-            this approach too gimmicky.
-            """
-            return TransactionResult(
-                network=result.network.value,
-                response_code=result.response_code,
-                response_message=result.response_message,
-                approval_code=result.approval_code,
-                status=TransactionStatus.APPROVED
-            )
+    return _process_transaction(processors=processors, transaction=transaction)
 
+
+def _process_transaction(
+        processors: Iterator[adapters.AcquiringProcessorProvider],
+        transaction: Transaction,
+        attempt: int = 0) -> TransactionResult:
+    capture_message = _transaction_to_capture_message(transaction)
+    processor = next(processors, adapters.NoAcquiringProcessorProviderAvailable)
+    result = processor.capture(message=capture_message)
+    if isinstance(result, adapters.ApprovedCapture):
+        """
+        I used this approach only here and not in the response of the service
+        because normally its going to return to a REST API which would make
+        this approach too gimmicky.
+        """
         return TransactionResult(
             network=result.network.value,
             response_code=result.response_code,
             response_message=result.response_message,
-            status=TransactionStatus.REJECTED,
-            approval_code=""
+            approval_code=result.approval_code,
+            status=TransactionStatus.APPROVED,
+            attempts=attempt
         )
+
+    if isinstance(result, adapters.RejectedCapture) and result.is_retryable:
+        attempt = attempt + 1
+        return _process_transaction(processors=processors, transaction=transaction, attempt=attempt)
+
+    return TransactionResult(
+        network=result.network.value,
+        response_code=result.response_code,
+        response_message=result.response_message,
+        status=TransactionStatus.REJECTED,
+        approval_code="",
+        attempts=attempt
+    )
 
 
 def _transaction_to_capture_message(transaction: Transaction) -> adapters.CaptureMessage:
