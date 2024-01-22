@@ -4,7 +4,7 @@ from typing import List
 
 import pydantic
 
-from checkout.standard_types import money, card
+from checkout.standard_types import money, card, helpers
 
 
 class TransactionTypes(enum.Enum):
@@ -66,6 +66,7 @@ class CardNotPresentTransaction(pydantic.BaseModel):
     card_data: PCIComplianceCard
     status: TransactionStatus
     network_response: NetworkResponse
+    transaction_date: int
 
     @classmethod
     def capture(
@@ -109,7 +110,8 @@ class CardNotPresentTransaction(pydantic.BaseModel):
             ),
             transaction_type=TransactionTypes.CAPTURE,
             status=TransactionStatus.PROCESSING,
-            network_response=NoNetworkResponse()
+            network_response=NoNetworkResponse(),
+            transaction_date=helpers.time_ns(),
         )
 
     def approve(self,

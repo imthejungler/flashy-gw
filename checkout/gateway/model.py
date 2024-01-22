@@ -43,6 +43,7 @@ class CardNotPresentPayment(base_types.Aggregate):
     receipt: Receipt
     status: PaymentStatus
     card: NotPresentCard
+    payment_date: int
 
     @classmethod
     def create(
@@ -67,6 +68,7 @@ class CardNotPresentPayment(base_types.Aggregate):
             card=NotPresentCard(
                 masked_pan=card_masked_pan
             ),
+            payment_date=helpers.time_ns(),
             receipt=PendingReceipt()
         )
 
