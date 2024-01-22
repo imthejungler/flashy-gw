@@ -9,7 +9,32 @@
 
 <br/>
 
-## Introduction
+## Stack:
+
+- Vercel to deploy the API REST
+- FastAPI as the API REST developement framework
+- PostgreSQL as the data base, no reason in particular more than the ease of use and wide support, also hosted in
+  Vercel.
+- Python as programming language, heavily used as an Object Oriented Programing Language, in company of pydantic for a
+  strong typing.
+
+# Asumptions
+
+I assumed we were operating at a high scale, and that the Gateway would grow very rapidly, not only in terms of
+transactions but also in the variety of payment methods.
+
+# Introduction
+
+Hi, I'm Julio César Indriago, and this is my representation of a Payment Gateway.
+
+The key feature of this implementation is the approach in terms of cognitive load and the distribution of components,
+which, in my experience, functions as a separation of teams and concerns.
+
+This design takes into account how Conway's Law operates. Ultimately, there should be two teams: one in charge of the
+Payment Gateway and another responsible for abstracting the complexities of the card processing world. This naturally
+leads to a separation of concerns.
+
+In the following diagram, you can see how the components are laid out and interact.
 
 ```mermaid
 sequenceDiagram
@@ -17,7 +42,6 @@ sequenceDiagram
     participant co as checkout
     participant pgw as payments_gw
     participant cp as card_processing
-    participant cpc as card_processing_clinc
     participant acq as acquiring_processor
     Shoper->>co: make payment
     activate co
@@ -38,14 +62,6 @@ sequenceDiagram
     end
     alt something goes poorly (timeout, server error, etc)
         cp-xacq: process transaction
-        critical Revert transaction 'cause we don't know what went poorly
-            cp-)cpc: resolve transaction
-            activate cpc
-            loop every X minutes until resolution
-                cpc->>acq: revert transaction
-            end
-            deactivate cpc
-        end
         cp->>pgw: transaction rejected
         pgw->>co: transaction rejected
         co->>Shoper: Show payment rejected
@@ -61,6 +77,20 @@ sequenceDiagram
     deactivate co
 ```
 
+Certainly, this will bring some trade-offs in terms of message mapping, but with the proposed division, that trade-off
+becomes less significant in favor of loose coupling and high cohesion.
+
+Finally, the CardProcessing component is deliberately complex to accommodate potential growth:
+
+It includes a service to obtain card information based on the PAN.
+There is a simple router that routes the transaction, changing acquiring banks depending on the franchise.
+We conclude with a retry logic for the transaction, allowing us to attempt recovery of approvals.
+
+# The Database
+
+The table definition is in the file `queries.sql` at the root of the project if you want to run it locally.
+
+## How to run it?
 This is a hybrid Next.js + Python app that uses Next.js as the frontend and FastAPI as the API backend. One great use case of this is to write Next.js apps that use Python AI libraries on the backend.
 
 ## How It Works
