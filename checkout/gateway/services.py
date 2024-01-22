@@ -75,6 +75,7 @@ class PaymentRequest(pydantic.BaseModel):
 
 
 class PaymentStatus(enum.Enum):
+    PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 
