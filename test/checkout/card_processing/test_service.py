@@ -25,15 +25,3 @@ def test_should_process_transaction_accordingly(
     )
     assert transaction_response.status == expected_status
     assert transaction_response.attempts == expected_attempts
-
-
-def test_franchise_not_supported() -> None:
-    ...
-
-
-def test_approved_transaction() -> None:
-    ...
-
-
-def test_fraudulent_transaction() -> None:
-    ...

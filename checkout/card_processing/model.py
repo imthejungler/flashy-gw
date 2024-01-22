@@ -1,17 +1,16 @@
 import decimal
 import enum
-from typing import List
 
 import pydantic
 
-from checkout.standard_types import money, card
+from checkout.standard_types import money, card, helpers
 
 
 class TransactionTypes(enum.Enum):
-    AUTHORIZATION = enum.auto()
-    CAPTURE = enum.auto()
-    REVERSAL = enum.auto()
-    VOID = enum.auto()
+    AUTHORIZATION = "AUTHORIZATION"
+    CAPTURE = "CAPTURE"
+    REVERSAL = "REVERSAL"
+    VOID = "VOID"
 
 
 class PCIComplianceCard(pydantic.BaseModel):
@@ -25,15 +24,16 @@ class PCIComplianceCard(pydantic.BaseModel):
 
 
 class TransactionStatus(enum.Enum):
-    PROCESSING = enum.auto()
-    APPROVED = enum.auto()
-    REJECTED = enum.auto()
+    PROCESSING = "PROCESSING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class NetworkResponse(pydantic.BaseModel):
     network: card.AcquiringNetwork
     response_code: str
     response_message: str
+    approval_code: str
     attempt: int = 0
 
 
@@ -43,12 +43,14 @@ class ApprovedNetworkResponse(NetworkResponse):
 
 class RejectNetworkResponse(NetworkResponse):
     was_retryable: bool
+    approval_code: str = ""
 
 
 class NoNetworkResponse(NetworkResponse):
     network: card.AcquiringNetwork = card.AcquiringNetwork.NONE
     response_code: str = "F99"
-    response_message: str = "Processing Transaction: check for errors in the logic"
+    response_message: str = "Processing Transaction"
+    approval_code: str = ""
     attempt: int = 0
 
 
@@ -57,15 +59,15 @@ class CardNotPresentTransaction(pydantic.BaseModel):
     client_id: str
     client_reference_id: str
     merchant_id: str
-    merchant_economic_activity: str
     transaction_type: TransactionTypes
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     card_data: PCIComplianceCard
     status: TransactionStatus
     network_response: NetworkResponse
+    transaction_date: int
 
     @classmethod
     def capture(
@@ -75,11 +77,10 @@ class CardNotPresentTransaction(pydantic.BaseModel):
             client_id: str,
             client_reference_id: str,
             merchant_id: str,
-            merchant_economic_activity: str,
             currency: money.Currency,
             total_amount: decimal.Decimal,
             tip: decimal.Decimal,
-            taxes: List[money.Tax],
+            vat: decimal.Decimal,
             cardholder_name: str,
             franchise: str,
             card_country: str,
@@ -93,11 +94,10 @@ class CardNotPresentTransaction(pydantic.BaseModel):
             client_id=client_id,
             client_reference_id=client_reference_id,
             merchant_id=merchant_id,
-            merchant_economic_activity=merchant_economic_activity,
             currency=currency,
             total_amount=total_amount,
             tip=tip,
-            taxes=taxes,
+            vat=vat,
             card_data=PCIComplianceCard(
                 cardholder_name=cardholder_name,
                 country=card_country,
@@ -109,7 +109,8 @@ class CardNotPresentTransaction(pydantic.BaseModel):
             ),
             transaction_type=TransactionTypes.CAPTURE,
             status=TransactionStatus.PROCESSING,
-            network_response=NoNetworkResponse()
+            network_response=NoNetworkResponse(),
+            transaction_date=helpers.time_ns(),
         )
 
     def approve(self,

@@ -1,7 +1,7 @@
 import decimal
+import enum
 
 import pydantic
-import enum
 
 
 class Currency(enum.Enum):
@@ -10,7 +10,7 @@ class Currency(enum.Enum):
 
 
 class TaxType(enum.Enum):
-    VAT = enum.auto()
+    VAT = "VAT"
 
 
 class Tax(pydantic.BaseModel):

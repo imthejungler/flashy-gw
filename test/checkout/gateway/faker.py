@@ -16,7 +16,7 @@ class PaymentRequestFaker:
             currency=money.Currency.EUR,
             total_amount=decimal.Decimal("100.00"),
             tip=decimal.Decimal("0"),
-            taxes=[],
+            vat=decimal.Decimal("0"),
             card=services.CardRequest(
                 cardholder_name="Fulanito de tal",
                 expiration_month=1,
@@ -29,10 +29,12 @@ class PaymentRequestFaker:
 
 class PaymentResponseFaker:
     @staticmethod
-    def with_approved_transaction(payment_id: str, approval_number: str) -> services.PaymentResponse:
+    def with_approved_transaction(payment_id: str, approval_code: str) -> services.PaymentResponse:
         return services.PaymentResponse(
             payment_id=payment_id,
-            approval_number=approval_number,
+            response_code="00",
+            response_message="Approved or completed successfully",
+            approval_code=approval_code,
             status="APPROVED"
         )
 
@@ -40,16 +42,18 @@ class PaymentResponseFaker:
     def with_rejected_transaction(payment_id: str) -> services.PaymentResponse:
         return services.PaymentResponse(
             payment_id=payment_id,
-            approval_number="",
+            response_code="05",
+            response_message="Do not honor",
+            approval_code="",
             status="REJECTED"
         )
 
 
 class StubApprovedTransactionCardNotPresentProvider(adapters.CardNotPresentProvider):
     def __init__(self,
-                 approval_number: str = "",
+                 approval_code: str = "",
                  network: str = "CBK") -> None:
-        self.approval_number = approval_number
+        self.approval_code = approval_code
         self.network = network
 
     def sale(self, transaction: adapters.Transaction) -> adapters.TransactionResponse:
@@ -59,7 +63,7 @@ class StubApprovedTransactionCardNotPresentProvider(adapters.CardNotPresentProvi
             response_code="00",
             response_message="Approved or completed successfully",
             status=adapters.TransactionStatus.APPROVED,
-            approval_number=self.approval_number,
+            approval_code=self.approval_code,
         )
 
 
@@ -75,7 +79,7 @@ class StubRejectedTransactionCardNotPresentProvider(adapters.CardNotPresentProvi
             response_code="05",
             response_message="Do not honor",
             status=adapters.TransactionStatus.REJECTED,
-            approval_number="",
+            approval_code="",
         )
 
 
@@ -103,20 +107,22 @@ class FakeCardNotPresentPaymentRepository(adapters.CardNotPresentPaymentReposito
 class StubApprovedCardNotPresentPayment:
     @staticmethod
     def with_attrs(
-            payment_id: str, merchant_id: str, approval_number: str, time_ns: int) -> model.CardNotPresentPayment:
+            payment_id: str, merchant_id: str, approval_code: str, time_ns: int) -> model.CardNotPresentPayment:
         return model.CardNotPresentPayment(
             merchant_id=merchant_id,
             payment_id=payment_id,
             currency=money.Currency.EUR,
             total_amount=decimal.Decimal("100.00"),
             tip=decimal.Decimal("0"),
-            taxes=[],
+            vat=decimal.Decimal("0"),
             card=model.NotPresentCard(
                 masked_pan="123456******1234"
             ),
             status=model.PaymentStatus.APPROVED,
-            receipt=model.ApprovalReceipt(
-                post_time=time_ns,
-                approval_number=approval_number
-            )
+            receipt=model.Receipt(
+                response_code="00",
+                response_message="Approved or completed successfully",
+                approval_code=approval_code
+            ),
+            payment_date=time_ns
         )

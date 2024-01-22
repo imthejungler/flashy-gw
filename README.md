@@ -11,6 +11,56 @@
 
 ## Introduction
 
+```mermaid
+sequenceDiagram
+    actor Shoper
+    participant co as checkout
+    participant pgw as payments_gw
+    participant cp as card_processing
+    participant cpc as card_processing_clinc
+    participant acq as acquiring_processor
+    Shoper->>co: make payment
+    activate co
+    co->>pgw: make payment
+    activate pgw
+    pgw->>pgw: validate merchant
+    opt validations failed
+        pgw->>co: payment rejected
+        co->>Shoper: Show payment rejected
+    end
+    pgw->>cp: make payment
+    activate cp
+    cp->>cp: validate card restrictions
+    opt validations failed
+        cp->>pgw: payment rejected
+        pgw->>co: payment rejected
+        co->>Shoper: Show payment rejected
+    end
+    alt something goes poorly (timeout, server error, etc)
+        cp-xacq: process transaction
+        critical Revert transaction 'cause we don't know what went poorly
+            cp-)cpc: resolve transaction
+            activate cpc
+            loop every X minutes until resolution
+                cpc->>acq: revert transaction
+            end
+            deactivate cpc
+        end
+        cp->>pgw: transaction rejected
+        pgw->>co: transaction rejected
+        co->>Shoper: Show payment rejected
+    end
+    cp->>acq: process transaction
+    acq->>cp: transaction result
+    Note over acq,cp: approved or rejected
+    cp->>pgw: transaction result
+    deactivate cp
+    pgw->>co: transaction result
+    deactivate pgw
+    co->>Shoper: Show payment result
+    deactivate co
+```
+
 This is a hybrid Next.js + Python app that uses Next.js as the frontend and FastAPI as the API backend. One great use case of this is to write Next.js apps that use Python AI libraries on the backend.
 
 ## How It Works

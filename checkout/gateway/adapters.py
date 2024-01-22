@@ -1,13 +1,15 @@
 import abc
 import decimal
 import enum
-from typing import List, Optional
+import os
+from typing import Optional
 
+import psycopg2
 import pydantic
 
 from checkout.card_processing import services, adapters
 from checkout.gateway import model
-from checkout.standard_types import money
+from checkout.standard_types import money, helpers
 
 
 # CARD PROCESSING ADAPTER #########################################
@@ -22,24 +24,25 @@ class Card(pydantic.BaseModel):
 class Transaction(pydantic.BaseModel):
     client_id: str = "FLASHY_GW"
     client_reference_id: str
+    merchant_id: str
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     card: Card
 
 
 class TransactionStatus(enum.Enum):
-    PENDING = enum.auto()
-    APPROVED = enum.auto()
-    REJECTED = enum.auto()
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class TransactionResponse(pydantic.BaseModel):
     network: str
     response_code: str
     response_message: str
-    approval_number: str
+    approval_code: str
     status: TransactionStatus
 
 
@@ -60,13 +63,13 @@ class CardNotPresentProvider(abc.ABC):
         """
 
 
-class DefaultCardNotPresentProvider(CardNotPresentProvider):
+class FlashyCardNotPresentProvider(CardNotPresentProvider):
     def sale(self, transaction: Transaction) -> TransactionResponse:
         return services.process_sale(
-            request=DefaultCardNotPresentProvider._transaction_to_request(transaction=transaction),
-            router=adapters.DefaultTransactionRouter(),
-            account_range_provider=adapters.DefaultAccountRangeProvider(),
-            repo=adapters.DefaultCardNotPresentTransactionRepository()
+            request=FlashyCardNotPresentProvider._transaction_to_request(transaction=transaction),
+            router=adapters.FlashyTransactionRouter(),
+            account_range_provider=adapters.FlashyAccountRangeProvider(),
+            repo=adapters.PostgresCardNotPresentTransactionRepository()
         )
 
     @staticmethod
@@ -75,11 +78,10 @@ class DefaultCardNotPresentProvider(CardNotPresentProvider):
             client_id=transaction.client_id,
             client_reference_id=transaction.client_reference_id,
             merchant_id=transaction.merchant_id,
-            merchant_economic_activity=transaction.merchant_economic_activity,
             currency=transaction.currency,
             total_amount=transaction.total_amount,
             tip=transaction.tip,
-            taxes=transaction.taxes,
+            vat=transaction.vat,
             card=services.Card(
                 cardholder_name=transaction.card.cardholder_name,
                 expiration_month=transaction.card.expiration_month,
@@ -110,15 +112,70 @@ class CardNotPresentPaymentRepository(abc.ABC):
         ...
 
 
-class DefaultCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
+class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
     def generate_id(self) -> str:
-        pass
+        return helpers.IDGenerator.hex_uuid()
 
     def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
         pass
 
     def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
-        pass
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    INSERT INTO payments (
+                    merchant_id, payment_id, 
+                    currency, total_amount, tip, vat, 
+                    receipt_response_code, receipt_response_message, receipt_approval_code, 
+                    status, card_masked_pan, payment_date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (payment.merchant_id, payment.payment_id,
+                 payment.currency.value, payment.total_amount, payment.tip, payment.vat,
+                 payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
+                 payment.status.value, payment.card.masked_pan, payment.payment_date))
+            conn.commit()
+            cursor.close()
+            return payment
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
 
     def update_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
-        pass
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    UPDATE payments SET 
+                    receipt_response_code = %s, receipt_response_message = %s, 
+                    receipt_approval_code = %s, status = %s
+                    WHERE merchant_id = %s AND payment_id = %s
+                """,
+                (payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
+                 payment.status.value, payment.merchant_id, payment.payment_id))
+            conn.commit()
+            cursor.close()
+
+            return payment
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+
+    def _get_connection(self):
+        return psycopg2.connect(
+            host=os.environ.get("POSTGRES_HOST"),
+            dbname=os.environ.get("POSTGRES_DATABASE"),
+            user=os.environ.get("POSTGRES_USER"),
+            password=os.environ.get("POSTGRES_PASSWORD"),
+        )
