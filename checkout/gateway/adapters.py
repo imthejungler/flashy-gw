@@ -5,6 +5,7 @@ from typing import List, Optional
 
 import pydantic
 
+from checkout.card_processing import services, adapters
 from checkout.gateway import model
 from checkout.standard_types import money
 
@@ -44,7 +45,7 @@ class TransactionResponse(pydantic.BaseModel):
 
 class CardNotPresentProvider(abc.ABC):
     @abc.abstractmethod
-    def sale(self, payment: Transaction) -> TransactionResponse:
+    def sale(self, transaction: Transaction) -> TransactionResponse:
         """
         Authorizes and captures a transaction in one step:
         - Validates the card data,
@@ -58,40 +59,35 @@ class CardNotPresentProvider(abc.ABC):
         TransactionResponse
         """
 
-    # @abc.abstractmethod
-    # def authorize(self, transaction: Transaction) -> TransactionResponse:
-    #     """
-    #     Authorize a transaction:
-    #     - Validates the card data,
-    #     - Checks the card's restrictions,
-    #     - Evaluates the transaction against an anti-fraud system,
-    #
-    #     if any of this conditions fails, returns a rejected transaction.
-    #
-    #     Otherwise, returns the response of the Acquiring processor.
-    #     :return:
-    #     TransactionResponse
-    #     """
-    #
-    # @abc.abstractmethod
-    # def capture(self, authorized_transaction: AutorizedTransaction) -> TransactionResponse:
-    #     """
-    #     Captures a previously authorized transaction:
-    #     - Validates the card data,
-    #     - Checks the card's restrictions,
-    #     - Evaluates the transaction against an anti-fraud system,
-    #
-    #     if any of this conditions fails, returns a rejected transaction.
-    #
-    #     Otherwise, returns the response of the Acquiring processor.
-    #     :return:
-    #     TransactionResponse
-    #     """
-
 
 class DefaultCardNotPresentProvider(CardNotPresentProvider):
-    def sale(self, payment: Transaction) -> TransactionResponse:
-        pass
+    def sale(self, transaction: Transaction) -> TransactionResponse:
+        return services.process_sale(
+            request=DefaultCardNotPresentProvider._transaction_to_request(transaction=transaction),
+            router=adapters.DefaultTransactionRouter(),
+            account_range_provider=adapters.DefaultAccountRangeProvider(),
+            repo=adapters.DefaultCardNotPresentTransactionRepository()
+        )
+
+    @staticmethod
+    def _transaction_to_request(transaction: Transaction) -> services.TransactionRequest:
+        return services.TransactionRequest(
+            client_id=transaction.client_id,
+            client_reference_id=transaction.client_reference_id,
+            merchant_id=transaction.merchant_id,
+            merchant_economic_activity=transaction.merchant_economic_activity,
+            currency=transaction.currency,
+            total_amount=transaction.total_amount,
+            tip=transaction.tip,
+            taxes=transaction.taxes,
+            card=services.Card(
+                cardholder_name=transaction.card.cardholder_name,
+                expiration_month=transaction.card.expiration_month,
+                expiration_year=transaction.card.expiration_year,
+                pan=transaction.card.pan,
+                cvv=transaction.card.cvv,
+            ),
+        )
 
 
 # PAYMENT REPOSITORY #########################################

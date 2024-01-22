@@ -52,7 +52,7 @@ class StubApprovedTransactionCardNotPresentProvider(adapters.CardNotPresentProvi
         self.approval_number = approval_number
         self.network = network
 
-    def sale(self, payment: adapters.Transaction) -> adapters.TransactionResponse:
+    def sale(self, transaction: adapters.Transaction) -> adapters.TransactionResponse:
         return adapters.TransactionResponse(
             transaction_id="fake-transaction-id",
             network=self.network,
@@ -68,7 +68,7 @@ class StubRejectedTransactionCardNotPresentProvider(adapters.CardNotPresentProvi
                  network: str = "CBK") -> None:
         self.network = network
 
-    def sale(self, payment: adapters.Transaction) -> adapters.TransactionResponse:
+    def sale(self, transaction: adapters.Transaction) -> adapters.TransactionResponse:
         return adapters.TransactionResponse(
             transaction_id="fake-transaction-id",
             network=self.network,
