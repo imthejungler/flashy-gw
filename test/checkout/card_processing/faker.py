@@ -103,11 +103,12 @@ class StubAllRetryableRejectedTransactionRouter(adapters.TransactionRouter):
 
 # REPOSITORY #########################################
 class StubAccountRangeProvider(adapters.AccountRangeProvider):
-    def get_pan_information(self, pan: pydantic.SecretStr) -> PANInfo:
+    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
         return PANInfo(
             country="FR",
             category="GOLD",
-            franchise="MASTER_CARD"
+            franchise="MasterCard",
+            issuer="BNP Paribas"
         )
 
 

@@ -10,24 +10,6 @@ from checkout.card_processing import model
 from checkout.standard_types import card, money
 
 
-# CARD INFO #########################################
-class CardInfo(pydantic.BaseModel):
-    country: str
-    franchise: card.Franchise
-    category: str
-
-
-class CardInfoAdapter(abc.ABC):
-    @abc.abstractmethod
-    def get_pan_info(self, pan: str) -> CardInfo:
-        ...
-
-
-class DefaultCardInfoAdapter(CardInfoAdapter):
-    def get_pan_info(self, pan: str) -> CardInfo:
-        pass
-
-
 # ACQUIRING PROCESSORS #########################################
 class FinancialMessage(pydantic.BaseModel):
     merchant_id: str
@@ -160,14 +142,34 @@ class PANInfo(pydantic.BaseModel):
     country: str
     category: str
     franchise: str
+    issuer: str
+
+
+class UnknownPANInfo(PANInfo):
+    country: str = "ZZ"
+    franchise: str = "UNRECOGNIZED"
+    category: str = "UNKNOWN"
+    issuer: str = "UNKNOWN"
 
 
 class AccountRangeProvider(abc.ABC):
     @abc.abstractmethod
-    def get_pan_information(self, pan: pydantic.SecretStr) -> PANInfo:
+    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
+        """
+           Uses account ranges, better than using only bins due as it uses 10 digits of the pan
+           in order to get the Franchise, country and most of the time, the category,
+           :param pan: from 15 to 19 digits number representing the identifier of the card.
+           :return: detailed information about the card
+        """
         ...
 
 
 class DefaultAccountRangeProvider(AccountRangeProvider):
-    def get_pan_information(self, pan: pydantic.SecretStr) -> PANInfo:
-        pass
+    _ACCOUNT_RANGE_SERVICE = {
+        "4444444444": PANInfo(country="FR", franchise="VISA", category="BLACK", issuer="LCL"),
+        "5555555555": PANInfo(country="VE", franchise="MASTER_CARD", category="BLACK", issuer="Banco de Venezuela"),
+        "4444455555": PANInfo(country="UK", franchise="VISA", category="BLACK", issuer="HSBC")
+    }
+
+    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
+        return self._ACCOUNT_RANGE_SERVICE.get(pan.get_secret_value()[:10], UnknownPANInfo())

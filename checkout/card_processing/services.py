@@ -50,7 +50,7 @@ def process_sale(request: TransactionRequest,
                  router: adapters.TransactionRouter,
                  account_range_provider: adapters.AccountRangeProvider,
                  repo: adapters.CardNotPresentTransactionRepository) -> TransactionResponse:
-    pan_info = account_range_provider.get_pan_information(pan=request.card.pan)
+    pan_info = account_range_provider.get_pan_info(pan=request.card.pan)
     processors = router.get_acquiring_processing_providers(
         package=adapters.TransactionPackage(franchise=card.Franchise.VISA))
 
