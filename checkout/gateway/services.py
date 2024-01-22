@@ -145,7 +145,6 @@ def process_payment(request: PaymentRequest,
     response = processor.sale(
         transaction=_map_request_to_adapter_transaction(
             payment_id=payment_id, request=request))
-
     if response.status == adapters.TransactionStatus.APPROVED:
         payment.approve(response_code=response.response_code,
                         response_message=response.response_message,

@@ -66,11 +66,19 @@ class CardNotPresentProvider(abc.ABC):
 
 class FlashyCardNotPresentProvider(CardNotPresentProvider):
     def sale(self, transaction: Transaction) -> TransactionResponse:
-        return services.process_sale(
+        response = services.process_sale(
             request=FlashyCardNotPresentProvider._transaction_to_request(transaction=transaction),
             router=adapters.FlashyTransactionRouter(),
             account_range_provider=adapters.FlashyAccountRangeProvider(),
             repo=adapters.PostgresCardNotPresentTransactionRepository()
+        )
+
+        return TransactionResponse(
+            network=response.network,
+            response_code=response.response_code,
+            response_message=response.response_message,
+            approval_code=response.approval_code,
+            status=TransactionStatus[response.status.value],
         )
 
     @staticmethod
