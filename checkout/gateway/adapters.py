@@ -9,7 +9,7 @@ import pydantic
 
 from checkout.card_processing import services, adapters
 from checkout.gateway import model
-from checkout.standard_types import money
+from checkout.standard_types import money, helpers
 
 
 # CARD PROCESSING ADAPTER #########################################
@@ -114,7 +114,7 @@ class CardNotPresentPaymentRepository(abc.ABC):
 
 class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
     def generate_id(self) -> str:
-        pass
+        return helpers.IDGenerator.hex_uuid()
 
     def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
         pass
@@ -126,11 +126,17 @@ class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
             cursor = conn.cursor()
             cursor.execute(
                 """
-                    INSERT INTO payments (merchant_id, payment_id, currency, total_amount, tip, vat, receipt, status, card_masked_pan, payment_date),
-                    VALUES (%s, %s, %s, %s, %s)
+                    INSERT INTO payments (
+                    merchant_id, payment_id, 
+                    currency, total_amount, tip, vat, 
+                    receipt_response_code, receipt_response_message, receipt_approval_code, 
+                    status, card_masked_pan, payment_date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                payment.merchant_id, payment.payment_id, payment.currency.value, payment.total_amount, payment.tip,
-                payment.vat, payment.receipt, payment.status.value, payment.card.masked_pan, payment.payment_date)
+                payment.merchant_id, payment.payment_id,
+                payment.currency.value, payment.total_amount, payment.tip, payment.vat,
+                payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
+                payment.status.value, payment.card.masked_pan, payment.payment_date)
             conn.commit()
             cursor.close()
             return payment
@@ -141,7 +147,6 @@ class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
             if conn is not None:
                 conn.close()
 
-
     def update_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         conn = None
         try:
@@ -150,12 +155,12 @@ class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
             cursor.execute(
                 """
                     UPDATE payments SET 
-                         
-                        receipt=%s, status=%s),
-                    VALUES (%s, %s, %s, %s, %s)
+                    receipt_response_code=%s, payment_receipt_response_message=%s, 
+                    payment_receipt_approval_code=%s, status=%s,
+                    WHERE merchant_id=%s AND payment_id=%s
                 """,
-                payment.merchant_id, payment.payment_id, payment.currency.value, payment.total_amount, payment.tip,
-                payment.vat, payment.receipt, payment.status.value, payment.card, payment.payment_date)
+                payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
+                payment.status.value, payment.merchant_id, payment.payment_id)
             conn.commit()
             cursor.close()
 
