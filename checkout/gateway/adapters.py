@@ -1,8 +1,10 @@
 import abc
 import decimal
 import enum
-from typing import List, Optional
+import os
+from typing import Optional
 
+import psycopg2
 import pydantic
 
 from checkout.card_processing import services, adapters
@@ -25,7 +27,7 @@ class Transaction(pydantic.BaseModel):
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     card: Card
 
 
@@ -39,7 +41,7 @@ class TransactionResponse(pydantic.BaseModel):
     network: str
     response_code: str
     response_message: str
-    approval_number: str
+    approval_code: str
     status: TransactionStatus
 
 
@@ -60,13 +62,13 @@ class CardNotPresentProvider(abc.ABC):
         """
 
 
-class DefaultCardNotPresentProvider(CardNotPresentProvider):
+class FlashyCardNotPresentProvider(CardNotPresentProvider):
     def sale(self, transaction: Transaction) -> TransactionResponse:
         return services.process_sale(
-            request=DefaultCardNotPresentProvider._transaction_to_request(transaction=transaction),
-            router=adapters.DefaultTransactionRouter(),
-            account_range_provider=adapters.DefaultAccountRangeProvider(),
-            repo=adapters.DefaultCardNotPresentTransactionRepository()
+            request=FlashyCardNotPresentProvider._transaction_to_request(transaction=transaction),
+            router=adapters.FlashyTransactionRouter(),
+            account_range_provider=adapters.FlashyAccountRangeProvider(),
+            repo=adapters.PostgresCardNotPresentTransactionRepository()
         )
 
     @staticmethod
@@ -110,7 +112,7 @@ class CardNotPresentPaymentRepository(abc.ABC):
         ...
 
 
-class DefaultCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
+class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
     def generate_id(self) -> str:
         pass
 
@@ -118,7 +120,57 @@ class DefaultCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
         pass
 
     def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
-        pass
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    INSERT INTO payments (merchant_id, payment_id, currency, total_amount, tip, vat, receipt, status, card_masked_pan, payment_date),
+                    VALUES (%s, %s, %s, %s, %s)
+                """,
+                payment.merchant_id, payment.payment_id, payment.currency.value, payment.total_amount, payment.tip,
+                payment.vat, payment.receipt, payment.status.value, payment.card.masked_pan, payment.payment_date)
+            conn.commit()
+            cursor.close()
+            return payment
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+
 
     def update_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
-        pass
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    UPDATE payments SET 
+                         
+                        receipt=%s, status=%s),
+                    VALUES (%s, %s, %s, %s, %s)
+                """,
+                payment.merchant_id, payment.payment_id, payment.currency.value, payment.total_amount, payment.tip,
+                payment.vat, payment.receipt, payment.status.value, payment.card, payment.payment_date)
+            conn.commit()
+            cursor.close()
+
+            return payment
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+
+    def _get_connection(self):
+        return psycopg2.connect(
+            host=os.environ.get("POSTGRES_HOST"),
+            dbname=os.environ.get("POSTGRES_DATABASE"),
+            user=os.environ.get("POSTGRES_USER"),
+            password=os.environ.get("POSTGRES_PASSWORD"),
+        )

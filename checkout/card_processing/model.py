@@ -1,6 +1,5 @@
 import decimal
 import enum
-from typing import List
 
 import pydantic
 
@@ -62,7 +61,7 @@ class CardNotPresentTransaction(pydantic.BaseModel):
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     card_data: PCIComplianceCard
     status: TransactionStatus
     network_response: NetworkResponse
@@ -80,7 +79,7 @@ class CardNotPresentTransaction(pydantic.BaseModel):
             currency: money.Currency,
             total_amount: decimal.Decimal,
             tip: decimal.Decimal,
-            taxes: List[money.Tax],
+            vat: decimal.Decimal,
             cardholder_name: str,
             franchise: str,
             card_country: str,
@@ -98,7 +97,7 @@ class CardNotPresentTransaction(pydantic.BaseModel):
             currency=currency,
             total_amount=total_amount,
             tip=tip,
-            taxes=taxes,
+            vat=vat,
             card_data=PCIComplianceCard(
                 cardholder_name=cardholder_name,
                 country=card_country,

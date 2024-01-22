@@ -1,7 +1,7 @@
 import decimal
 import enum
 from collections.abc import Iterator
-from typing import List, Optional
+from typing import Optional
 
 import pydantic
 
@@ -25,7 +25,7 @@ class TransactionRequest(pydantic.BaseModel):
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     card: Card
 
 
@@ -157,7 +157,7 @@ def _request_and_pan_into_to_transaction(request: TransactionRequest, pan_info: 
         currency=request.currency,
         total_amount=request.total_amount,
         tip=request.tip,
-        taxes=request.taxes,
+        vat=request.vat,
         cardholder_name=request.card.cardholder_name,
         franchise=pan_info.franchise,
         card_category=pan_info.category,

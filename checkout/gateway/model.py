@@ -1,26 +1,19 @@
 import decimal
 import enum
-from typing import List
 
 from checkout.standard_types import base_types, money, helpers
 
 
 class Receipt(base_types.ValueObjet):
-    post_time: int
-
-
-class ApprovalReceipt(Receipt):
-    approval_number: str
-
-
-class RejectionReceipt(Receipt):
-    rejection_code: str
-    rejection_message: str
+    response_code: str
+    response_message: str
+    approval_code: str = ""
 
 
 class PendingReceipt(Receipt):
-    post_time: int = 0
-
+    response_code: str = "F99"
+    response_message: str = "Pending Payment"
+    approval_code: str = ""
 
 class PaymentStatus(enum.Enum):
     PENDING = enum.auto()
@@ -39,7 +32,7 @@ class CardNotPresentPayment(base_types.Aggregate):
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     receipt: Receipt
     status: PaymentStatus
     card: NotPresentCard
@@ -54,7 +47,7 @@ class CardNotPresentPayment(base_types.Aggregate):
             currency: money.Currency,
             total_amount: decimal.Decimal,
             tip: decimal.Decimal,
-            taxes: List[money.Tax],
+            vat: decimal.Decimal,
             card_masked_pan: str,
     ) -> "CardNotPresentPayment":
         return cls(
@@ -63,7 +56,7 @@ class CardNotPresentPayment(base_types.Aggregate):
             currency=currency,
             total_amount=total_amount,
             tip=tip,
-            taxes=taxes,
+            vat=vat,
             status=PaymentStatus.PENDING,
             card=NotPresentCard(
                 masked_pan=card_masked_pan
@@ -72,17 +65,17 @@ class CardNotPresentPayment(base_types.Aggregate):
             receipt=PendingReceipt()
         )
 
-    def approve(self, approval_number: str) -> None:
+    def approve(self, response_code: str, response_message: str, approval_code: str) -> None:
         self.status = PaymentStatus.APPROVED
-        self.receipt = ApprovalReceipt(
-            post_time=helpers.time_ns(),
-            approval_number=approval_number
+        self.receipt = Receipt(
+            response_code=response_code,
+            response_message=response_message,
+            approval_code=approval_code
         )
 
-    def reject(self, rejection_code: str, rejection_message: str) -> None:
+    def reject(self, response_code: str, response_message: str) -> None:
         self.status = PaymentStatus.REJECTED
-        self.receipt = RejectionReceipt(
-            post_time=helpers.time_ns(),
-            rejection_code=rejection_code,
-            rejection_message=rejection_message
+        self.receipt = Receipt(
+            response_code=response_code,
+            response_message=response_message,
         )

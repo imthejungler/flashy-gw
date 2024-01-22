@@ -1,6 +1,5 @@
 import decimal
 import enum
-from typing import List, Optional
 
 import pydantic
 
@@ -21,19 +20,19 @@ class PaymentRequest(pydantic.BaseModel):
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
-    taxes: List[money.Tax]
+    vat: decimal.Decimal
     card: CardRequest
 
 
 class PaymentStatus(enum.Enum):
-    APPROVED = enum.auto()
-    REJECTED = enum.auto()
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class PaymentResponse(pydantic.BaseModel):
     payment_id: str
     status: PaymentStatus
-    approval_number: Optional[str] = None
+    approval_code: str = ""
 
 
 def process_payment(request: PaymentRequest,
@@ -44,25 +43,27 @@ def process_payment(request: PaymentRequest,
     payment = repository.create_payment(payment=_map_request_to_model(
         payment_id=payment_id, request=request))
 
-    transaction_response = processor.sale(
+    response = processor.sale(
         transaction=_map_request_to_adapter_transaction(
             payment_id=payment_id, request=request))
 
-    if transaction_response.status == adapters.TransactionStatus.APPROVED:
-        payment.approve(approval_number=transaction_response.approval_number)
+    if response.status == adapters.TransactionStatus.APPROVED:
+        payment.approve(response_code=response.response_code,
+                        response_message=response.response_message,
+                        approval_code=response.approval_code)
         repository.update_payment(payment=payment)
         return PaymentResponse(
             payment_id=payment_id,
-            approval_number=transaction_response.approval_number,
+            approval_code=response.approval_code,
             status=PaymentStatus.APPROVED
         )
 
-    payment.reject(rejection_code=transaction_response.response_code,
-                   rejection_message=transaction_response.response_message)
+    payment.reject(response_code=response.response_code,
+                   response_message=response.response_message)
     repository.update_payment(payment=payment)
     return PaymentResponse(
         payment_id=payment_id,
-        approval_number=transaction_response.approval_number,
+        approval_code=response.approval_code,
         status=PaymentStatus.REJECTED
     )
 
@@ -74,7 +75,7 @@ def _map_request_to_model(payment_id: str, request: PaymentRequest) -> model.Car
         currency=request.currency,
         total_amount=request.total_amount,
         tip=request.tip,
-        taxes=request.taxes,
+        vat=request.vat,
         card_masked_pan=card.PAN.mask(request.card.pan.get_secret_value()),
     )
 
@@ -85,7 +86,7 @@ def _map_request_to_adapter_transaction(payment_id: str, request: PaymentRequest
         currency=request.currency,
         total_amount=request.total_amount,
         tip=request.tip,
-        taxes=request.taxes,
+        vat=request.vat,
         card=adapters.Card(
             cardholder_name=request.card.cardholder_name,
             expiration_month=request.card.expiration_month,

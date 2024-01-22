@@ -37,7 +37,7 @@ class AccountRangeProvider(abc.ABC):
         ...
 
 
-class DefaultAccountRangeProvider(AccountRangeProvider):
+class FlashyAccountRangeProvider(AccountRangeProvider):
     _ACCOUNT_RANGE_SERVICE: Dict[str, PANInfo] = {
         "4444444444": PANInfo(country="FR", franchise="VISA", category="BLACK", issuer="LCL"),
         "5555555555": PANInfo(country="VE", franchise="MASTER_CARD", category="BLACK", issuer="Banco de Venezuela"),
@@ -174,7 +174,7 @@ class TransactionRouter(abc.ABC):
         ...
 
 
-class DefaultTransactionRouter(TransactionRouter):
+class FlashyTransactionRouter(TransactionRouter):
     _ROUTING_SYSTEM: Dict[card.Franchise, AcquiringProcessorProvider] = {
         card.Franchise.MASTER_CARD: CKOAcquiringProcessorProvider(),
         card.Franchise.VISA: OTHERAcquiringProcessorProvider()
@@ -210,7 +210,7 @@ class CardNotPresentTransactionRepository(abc.ABC):
         ...
 
 
-class DefaultCardNotPresentTransactionRepository(CardNotPresentTransactionRepository):
+class PostgresCardNotPresentTransactionRepository(CardNotPresentTransactionRepository):
     def generate_id(self) -> str:
         pass
 
