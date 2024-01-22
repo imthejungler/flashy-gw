@@ -2,12 +2,50 @@ import abc
 import decimal
 import enum
 from collections.abc import Iterator
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 import pydantic
 
 from checkout.card_processing import model
 from checkout.standard_types import card, money
+
+
+# ACCOUNT RANGES #########################################
+class PANInfo(pydantic.BaseModel):
+    country: str
+    category: str
+    franchise: str
+    issuer: str
+
+
+class UnknownPANInfo(PANInfo):
+    country: str = "ZZ"
+    franchise: str = "UNRECOGNIZED"
+    category: str = "UNKNOWN"
+    issuer: str = "UNKNOWN"
+
+
+class AccountRangeProvider(abc.ABC):
+    @abc.abstractmethod
+    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
+        """
+           Uses account ranges, better than using only bins due as it uses 10 digits of the pan
+           in order to get the Franchise, country and most of the time, the category,
+           :param pan: from 15 to 19 digits number representing the identifier of the card.
+           :return: detailed information about the card
+        """
+        ...
+
+
+class DefaultAccountRangeProvider(AccountRangeProvider):
+    _ACCOUNT_RANGE_SERVICE: Dict[str, PANInfo] = {
+        "4444444444": PANInfo(country="FR", franchise="VISA", category="BLACK", issuer="LCL"),
+        "5555555555": PANInfo(country="VE", franchise="MASTER_CARD", category="BLACK", issuer="Banco de Venezuela"),
+        "4444455555": PANInfo(country="UK", franchise="VISA", category="BLACK", issuer="HSBC")
+    }
+
+    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
+        return self._ACCOUNT_RANGE_SERVICE.get(pan.get_secret_value()[:10], UnknownPANInfo())
 
 
 # ACQUIRING PROCESSORS #########################################
@@ -61,8 +99,45 @@ class AcquiringProcessorProvider(abc.ABC):
 
 
 class CKOAcquiringProcessorProvider(AcquiringProcessorProvider):
+    _ACQUIRING_SERVICE: Dict[str, FinancialMessageResult] = {
+        "5555555555555555": RejectedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="43",
+            response_message="Stolen card, pick up",
+            interchange_rate=decimal.Decimal("0.10"),
+            is_retryable=False
+        )
+    }
+
     def capture(self, message: CaptureMessage) -> FinancialMessageResult:
-        pass
+        return self._ACQUIRING_SERVICE.get(message.pan.get_secret_value(), ApprovedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="00",
+            response_message="Approved or completed successfully",
+            interchange_rate=decimal.Decimal("0.10"),
+            approval_code="ABCDEFG1234",
+        ))
+
+
+class OTHERAcquiringProcessorProvider(AcquiringProcessorProvider):
+    _ACQUIRING_SERVICE: Dict[str, FinancialMessageResult] = {
+        "4444444444444444": RejectedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="19",
+            response_message="Re-enter transaction",
+            interchange_rate=decimal.Decimal("0.10"),
+            is_retryable=True
+        )
+    }
+
+    def capture(self, message: CaptureMessage) -> FinancialMessageResult:
+        return self._ACQUIRING_SERVICE.get(message.pan.get_secret_value(), ApprovedCapture(
+            network=card.AcquiringNetwork.CKO,
+            response_code="00",
+            response_message="Approved or completed successfully",
+            interchange_rate=decimal.Decimal("0.20"),
+            approval_code="ABCDEFG1234",
+        ))
 
 
 class NoProcessorAvailable(AcquiringProcessorProvider):
@@ -100,8 +175,19 @@ class TransactionRouter(abc.ABC):
 
 
 class DefaultTransactionRouter(TransactionRouter):
+    _ROUTING_SYSTEM: Dict[card.Franchise, AcquiringProcessorProvider] = {
+        card.Franchise.MASTER_CARD: CKOAcquiringProcessorProvider(),
+        card.Franchise.VISA: OTHERAcquiringProcessorProvider()
+    }
+
     def get_acquiring_processing_providers(self, package: TransactionPackage) -> Iterator[AcquiringProcessorProvider]:
-        pass
+        if package.franchise == card.Franchise.MASTER_CARD:
+            yield CKOAcquiringProcessorProvider()
+        elif package.franchise == card.Franchise.VISA:
+            yield OTHERAcquiringProcessorProvider()
+        else:
+            yield CKOAcquiringProcessorProvider()
+            yield OTHERAcquiringProcessorProvider()
 
 
 # CARD NOT PRESENT TRANSACTION REPOSITORY #########################################
@@ -136,40 +222,3 @@ class DefaultCardNotPresentTransactionRepository(CardNotPresentTransactionReposi
 
     def update_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
         pass
-
-
-class PANInfo(pydantic.BaseModel):
-    country: str
-    category: str
-    franchise: str
-    issuer: str
-
-
-class UnknownPANInfo(PANInfo):
-    country: str = "ZZ"
-    franchise: str = "UNRECOGNIZED"
-    category: str = "UNKNOWN"
-    issuer: str = "UNKNOWN"
-
-
-class AccountRangeProvider(abc.ABC):
-    @abc.abstractmethod
-    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
-        """
-           Uses account ranges, better than using only bins due as it uses 10 digits of the pan
-           in order to get the Franchise, country and most of the time, the category,
-           :param pan: from 15 to 19 digits number representing the identifier of the card.
-           :return: detailed information about the card
-        """
-        ...
-
-
-class DefaultAccountRangeProvider(AccountRangeProvider):
-    _ACCOUNT_RANGE_SERVICE = {
-        "4444444444": PANInfo(country="FR", franchise="VISA", category="BLACK", issuer="LCL"),
-        "5555555555": PANInfo(country="VE", franchise="MASTER_CARD", category="BLACK", issuer="Banco de Venezuela"),
-        "4444455555": PANInfo(country="UK", franchise="VISA", category="BLACK", issuer="HSBC")
-    }
-
-    def get_pan_info(self, pan: pydantic.SecretStr) -> PANInfo:
-        return self._ACCOUNT_RANGE_SERVICE.get(pan.get_secret_value()[:10], UnknownPANInfo())
