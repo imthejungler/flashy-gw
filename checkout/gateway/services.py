@@ -1,5 +1,6 @@
 import decimal
 import enum
+from typing import Optional, List
 
 import pydantic
 
@@ -23,6 +24,55 @@ class PaymentRequest(pydantic.BaseModel):
     vat: decimal.Decimal
     card: CardRequest
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "merchant_id": "1",
+                    "currency": "EUR",
+                    "total_amount": "100.0",
+                    "tip": "0.0",
+                    "vat": "0.0",
+                    "card": {
+                        "cardholder_name": "Juls Cesar",
+                        "expiration_month": 2024,
+                        "expiration_year": 12,
+                        "pan": "4444444444444444",
+                        "cvv": "000"
+                    }
+                },
+                {
+                    "merchant_id": "1",
+                    "currency": "EUR",
+                    "total_amount": "100.0",
+                    "tip": "0.0",
+                    "vat": "0.0",
+                    "card": {
+                        "cardholder_name": "Juls Cesar",
+                        "expiration_month": 2024,
+                        "expiration_year": 12,
+                        "pan": "5555555555555555",
+                        "cvv": "000"
+                    }
+                },
+                {
+                    "merchant_id": "1",
+                    "currency": "EUR",
+                    "total_amount": "100.0",
+                    "tip": "0.0",
+                    "vat": "0.0",
+                    "card": {
+                        "cardholder_name": "Juls Cesar",
+                        "expiration_month": 2024,
+                        "expiration_year": 12,
+                        "pan": "3333333333333333",
+                        "cvv": "000"
+                    }
+                }
+            ]
+        }
+    }
+
 
 class PaymentStatus(enum.Enum):
     APPROVED = "APPROVED"
@@ -35,6 +85,53 @@ class PaymentResponse(pydantic.BaseModel):
     response_code: str
     response_message: str
     approval_code: str = ""
+
+
+class GetPaymentResponse(pydantic.BaseModel):
+    payment_id: str
+    currency: money.Currency
+    total_amount: decimal.Decimal
+    tip: decimal.Decimal
+    vat: decimal.Decimal
+    last_four_digits: str
+    status: PaymentStatus
+
+
+class PaymentNotFoundError(Exception):
+    message: str = "Payment not found"
+
+
+def get_payments(
+        merchant_id: str,
+        repository: adapters.CardNotPresentPaymentRepository) -> List[GetPaymentResponse]:
+    payments = repository.get_payments(merchant_id=merchant_id)
+
+    return [GetPaymentResponse(
+        payment_id=payment.payment_id,
+        currency=payment.currency,
+        total_amount=payment.total_amount,
+        tip=payment.tip,
+        vat=payment.vat,
+        last_four_digits=payment.card.masked_pan[-4:],
+        status=PaymentStatus[payment.status.value],
+    ) for payment in payments]
+
+
+def get_payment(
+        merchant_id: str, payment_id: str,
+        repository: adapters.CardNotPresentPaymentRepository) -> Optional[GetPaymentResponse]:
+    payment: model.CardNotPresentPayment = repository.find_payment(merchant_id=merchant_id, payment_id=payment_id)
+    if not payment:
+        return None
+    return GetPaymentResponse(
+        payment_id=payment.payment_id,
+        currency=payment.currency,
+        total_amount=payment.total_amount,
+        tip=payment.tip,
+        vat=payment.vat,
+        last_four_digits=payment.card.masked_pan[-4:],
+        status=PaymentStatus[payment.status.value],
+    )
 
 
 def process_payment(request: PaymentRequest,

@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "public": false,
+  "devCommand": "uvicorn checkout.gateway.entrypoint:app --host 0.0.0.0 --port 80",
+  "builds": [
+    {
+      "src": "/checkout/gateway/entrypoint.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/checkout/gateway/entrypoint.py"
+    }
+  ]
+}

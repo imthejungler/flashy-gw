@@ -92,7 +92,10 @@ class FakeCardNotPresentPaymentRepository(adapters.CardNotPresentPaymentReposito
     def generate_id(self) -> str:
         return self.ids.pop()
 
-    def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
+    def get_payments(self, merchant_id: str) -> List[model.CardNotPresentPayment]:
+        return [self.payments.get(merchant_id)]
+
+    def find_payment(self, merchant_id: str, payment_id: str) -> Optional[model.CardNotPresentPayment]:
         return self.payments.get(payment_id)
 
     def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:

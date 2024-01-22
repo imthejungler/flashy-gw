@@ -2,13 +2,14 @@ import abc
 import decimal
 import enum
 import os
-from typing import Optional
+from typing import Optional, List
 
 import psycopg2
 import pydantic
 
 from checkout.card_processing import services, adapters
 from checkout.gateway import model
+from checkout.gateway.model import CardNotPresentPayment
 from checkout.standard_types import money, helpers
 
 
@@ -100,7 +101,11 @@ class CardNotPresentPaymentRepository(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
+    def get_payments(self, merchant_id: str) -> List[model.CardNotPresentPayment]:
+        ...
+
+    @abc.abstractmethod
+    def find_payment(self, merchant_id: str, payment_id: str) -> Optional[model.CardNotPresentPayment]:
         ...
 
     @abc.abstractmethod
@@ -113,11 +118,97 @@ class CardNotPresentPaymentRepository(abc.ABC):
 
 
 class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
+
     def generate_id(self) -> str:
         return helpers.IDGenerator.hex_uuid()
 
-    def find_by_id(self, payment_id: str) -> Optional[model.CardNotPresentPayment]:
-        pass
+    def get_payments(self, merchant_id: str) -> List[model.CardNotPresentPayment]:
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    SELECT merchant_id, payment_id, 
+                    currency, total_amount, tip, vat, 
+                    receipt_response_code, receipt_response_message, receipt_approval_code, 
+                    status, card_masked_pan, payment_date 
+                    FROM payments 
+                    WHERE merchant_id = %s
+                """,
+                (merchant_id,))
+
+            rows = cursor.fetchall()
+            payments = []
+            for row in rows:
+                payments.append(CardNotPresentPayment(
+                    merchant_id=merchant_id,
+                    payment_id=row[1],
+                    currency=money.Currency[row[2]],
+                    total_amount=row[3],
+                    tip=row[4],
+                    vat=row[5],
+                    receipt=model.Receipt(
+                        response_code=row[6],
+                        response_message=row[7],
+                        approval_code=row[8]),
+                    status=model.PaymentStatus[row[9]],
+                    card=model.NotPresentCard(
+                        masked_pan=row[10]),
+                    payment_date=row[11],
+                ))
+            cursor.close()
+            return payments
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+
+    def find_payment(self, merchant_id: str, payment_id: str) -> Optional[model.CardNotPresentPayment]:
+        conn = None
+        payment = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    SELECT merchant_id, payment_id, 
+                    currency, total_amount, tip, vat, 
+                    receipt_response_code, receipt_response_message, receipt_approval_code, 
+                    status, card_masked_pan, payment_date 
+                    FROM payments 
+                    WHERE merchant_id = %s AND payment_id = %s
+                """,
+                (merchant_id, payment_id))
+
+            row = cursor.fetchone()
+            if row is not None:
+                payment = CardNotPresentPayment(
+                    merchant_id=merchant_id,
+                    payment_id=payment_id,
+                    currency=money.Currency[row[2]],
+                    total_amount=row[3],
+                    tip=row[4],
+                    vat=row[5],
+                    receipt=model.Receipt(
+                        response_code=row[6],
+                        response_message=row[7],
+                        approval_code=row[8]),
+                    status=model.PaymentStatus[row[9]],
+                    card=model.NotPresentCard(
+                        masked_pan=row[10]),
+                    payment_date=row[11],
+                )
+            cursor.close()
+            return payment
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
 
     def create_payment(self, payment: model.CardNotPresentPayment) -> model.CardNotPresentPayment:
         conn = None

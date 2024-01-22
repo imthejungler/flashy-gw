@@ -53,4 +53,4 @@ def test_should_save_the_transaction_result(time_ns_mock: mock.MagicMock) -> Non
             approval_code="000000123456"
         ))
 
-    assert expected_payment == repository.find_by_id(payment_id="1")
+    assert expected_payment == repository.find_payment(merchant_id="1", payment_id="1")
