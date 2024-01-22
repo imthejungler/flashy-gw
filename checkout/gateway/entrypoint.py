@@ -5,7 +5,24 @@ from checkout.gateway import services, adapters
 app = FastAPI()
 
 
-@app.post("/v1/payments")
+@app.get("/")
+async def root() -> str:
+    return "<body><a href=./docs>Visit the API docs</a></body>"
+
+
+#
+#
+# @app.get("/merchants")
+# async def get_merchants() -> services.MerchantResponse:
+#     """
+#     Get all the merchants. No pagination is required. There's only one.
+#     """
+#     return services.get_merchants(
+#         repository=adapters.PostgresMerchantsRepository()
+#     )
+
+
+@app.post("/payments")
 async def make_payment(request: services.PaymentRequest) -> services.PaymentResponse:
     """
     Makes a payment with the usage of the payment provider services.

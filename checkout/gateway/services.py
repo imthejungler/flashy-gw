@@ -102,3 +102,12 @@ def _map_request_to_adapter_transaction(payment_id: str, request: PaymentRequest
             cvv=request.card.cvv.get_secret_value(),
         ),
     )
+
+# def get_merchants(repository: adapters.MerchantsRepository):
+#     return None
+#
+# class Merchant:
+#
+#
+# class MerchantResponse:
+#     merchants: List[Merchant]
