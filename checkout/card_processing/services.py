@@ -21,7 +21,6 @@ class TransactionRequest(pydantic.BaseModel):
     client_id: str
     client_reference_id: str
     merchant_id: str
-    merchant_economic_activity: str
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
@@ -30,9 +29,9 @@ class TransactionRequest(pydantic.BaseModel):
 
 
 class TransactionStatus(enum.Enum):
-    PENDING = enum.auto()
-    APPROVED = enum.auto()
-    REJECTED = enum.auto()
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class TransactionResponse(pydantic.BaseModel):
@@ -153,7 +152,6 @@ def _request_and_pan_into_to_transaction(request: TransactionRequest, pan_info: 
         client_id=request.client_id,
         client_reference_id=request.client_reference_id,
         merchant_id=request.merchant_id,
-        merchant_economic_activity=request.merchant_economic_activity,
         currency=request.currency,
         total_amount=request.total_amount,
         tip=request.tip,
@@ -174,7 +172,7 @@ def _transaction_request_to_capture_message(request: TransactionRequest) -> adap
         currency=request.currency,
         total_amount=request.total_amount,
         tip=request.tip,
-        taxes=request.taxes,
+        vat=request.vat,
         cardholder_name=request.card.cardholder_name,
         expiration_month=request.card.expiration_month,
         expiration_year=request.card.expiration_year,

@@ -15,11 +15,12 @@ class PendingReceipt(Receipt):
     response_message: str = "Pending Payment"
     approval_code: str = ""
 
+
 class PaymentStatus(enum.Enum):
-    PENDING = enum.auto()
-    APPROVED = enum.auto()
-    REJECTED = enum.auto()
-    VOIDED = enum.auto()
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    VOIDED = "VOIDED"
 
 
 class NotPresentCard(base_types.ValueObjet):

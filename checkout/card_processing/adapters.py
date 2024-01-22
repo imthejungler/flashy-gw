@@ -1,13 +1,16 @@
 import abc
 import decimal
-import enum
+import os
+import random
+import string
 from collections.abc import Iterator
-from typing import List, Optional, Dict
+from typing import Optional, Dict
 
+import psycopg2
 import pydantic
 
 from checkout.card_processing import model
-from checkout.standard_types import card, money
+from checkout.standard_types import card, money, helpers
 
 
 # ACCOUNT RANGES #########################################
@@ -49,13 +52,6 @@ class FlashyAccountRangeProvider(AccountRangeProvider):
 
 
 # ACQUIRING PROCESSORS #########################################
-class FinancialMessage(pydantic.BaseModel):
-    merchant_id: str
-    currency: money.Currency
-    total_amount: decimal.Decimal
-    tip: decimal.Decimal
-    taxes: List[money.Tax]
-
 
 class FinancialMessageResult(pydantic.BaseModel):
     network: card.AcquiringNetwork
@@ -72,24 +68,17 @@ class RejectedCapture(FinancialMessageResult):
     is_retryable: bool
 
 
-class CaptureMessage(FinancialMessage):
+class CaptureMessage(pydantic.BaseModel):
+    merchant_id: str
+    currency: money.Currency
+    total_amount: decimal.Decimal
+    tip: decimal.Decimal
+    vat: decimal.Decimal
     cardholder_name: str
     expiration_month: int
     expiration_year: int
     pan: pydantic.SecretStr
     cvv: pydantic.SecretStr
-
-
-class ServiceType(enum.Enum):
-    INTERCHANGE = enum.auto()
-    INTERNATIONAL_ROUTING = enum.auto()
-    ANTI_FRAUD_EVALUATION = enum.auto()
-    OTHER = enum.auto()
-
-
-class ProcessingCost(pydantic.BaseModel):
-    service_type: ServiceType
-    cost: decimal.Decimal
 
 
 class AcquiringProcessorProvider(abc.ABC):
@@ -136,7 +125,7 @@ class OTHERAcquiringProcessorProvider(AcquiringProcessorProvider):
             response_code="00",
             response_message="Approved or completed successfully",
             interchange_rate=decimal.Decimal("0.20"),
-            approval_code="ABCDEFG1234",
+            approval_code="".join(random.SystemRandom().choices(string.ascii_uppercase + string.digits, k=10)),
         ))
 
 
@@ -212,13 +201,131 @@ class CardNotPresentTransactionRepository(abc.ABC):
 
 class PostgresCardNotPresentTransactionRepository(CardNotPresentTransactionRepository):
     def generate_id(self) -> str:
-        pass
+        return helpers.IDGenerator.hex_uuid()
 
     def find_by_id(self, transaction_id: str) -> Optional[model.CardNotPresentTransaction]:
         pass
 
     def register_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
-        pass
+        conn = None
+        print("transaction.transaction_id ", transaction.transaction_id)
+        print("transaction.client_id ", transaction.client_id)
+        print("transaction.client_reference_id ", transaction.client_reference_id)
+        print("transaction.merchant_id ", transaction.merchant_id)
+        print("transaction.transaction_type.value ", transaction.transaction_type.value)
+        print("transaction.currency.value ", transaction.currency.value)
+        print("transaction.total_amount ", transaction.total_amount)
+        print("transaction.tip ", transaction.tip)
+        print("transaction.vat ", transaction.vat)
+        print("transaction.card_data.cardholder_name ", transaction.card_data.cardholder_name)
+        print("transaction.card_data.franchise ", transaction.card_data.franchise)
+        print("transaction.card_data.category ", transaction.card_data.category)
+        print("transaction.card_data.country ", transaction.card_data.country)
+        print("transaction.card_data.masked_pan ", transaction.card_data.masked_pan)
+        print("transaction.card_data.expiration_month ", transaction.card_data.expiration_month)
+        print("transaction.card_data.expiration_year ", transaction.card_data.expiration_year)
+        print("transaction.status.value ", transaction.status.value)
+        print("transaction.network_response.response_code ", transaction.network_response.response_code)
+        print("transaction.network_response.response_message ", transaction.network_response.response_message)
+        print("transaction.network_response.approval_code ", transaction.network_response.approval_code)
+        print("transaction.transaction_date ", transaction.transaction_date)
+        print("transaction.network_response.attempt ", transaction.network_response.attempt)
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    INSERT INTO transactions (
+                    transaction_id,
+                    client_id,
+                    client_reference_id,
+                    merchant_id,
+                    transaction_type,
+                    currency,
+                    total_amount,
+                    tip,
+                    vat,
+                    card_data_cardholder_name,
+                    card_data_franchise,
+                    card_data_category,
+                    card_data_country,
+                    card_data_masked_pan,
+                    card_data_expiration_month,
+                    card_data_expiration_year,
+                    status,
+                    response_code,
+                    response_message,
+                    approval_code,
+                    transaction_date,
+                    attempt)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    transaction.transaction_id,
+                    transaction.client_id,
+                    transaction.client_reference_id,
+                    transaction.merchant_id,
+                    transaction.transaction_type.value,
+                    transaction.currency.value,
+                    transaction.total_amount,
+                    transaction.tip,
+                    transaction.vat,
+                    transaction.card_data.cardholder_name,
+                    transaction.card_data.franchise,
+                    transaction.card_data.category,
+                    transaction.card_data.country,
+                    transaction.card_data.masked_pan,
+                    transaction.card_data.expiration_month,
+                    transaction.card_data.expiration_year,
+                    transaction.status.value,
+                    transaction.network_response.response_code,
+                    transaction.network_response.response_message,
+                    transaction.network_response.approval_code,
+                    transaction.transaction_date,
+                    transaction.network_response.attempt,
+                ))
+            conn.commit()
+            cursor.close()
+            return transaction
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
 
     def update_transaction(self, transaction: model.CardNotPresentTransaction) -> model.CardNotPresentTransaction:
-        pass
+        conn = None
+        try:
+            conn = self._get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                    UPDATE transactions SET 
+                    response_code = %s, response_message = %s, 
+                    approval_code = %s, status = %s, 
+                    attempt = %s
+                    WHERE client_id = %s AND transaction_id = %s
+                """,
+                (transaction.network_response.response_code, transaction.network_response.response_message,
+                 transaction.network_response.approval_code, transaction.status.value,
+                 transaction.network_response.attempt,
+                 transaction.client_id, transaction.transaction_id))
+            conn.commit()
+            cursor.close()
+
+            return transaction
+        except (Exception, psycopg2.DatabaseError) as error:
+            print(error)
+            raise
+        finally:
+            if conn is not None:
+                conn.close()
+
+    def _get_connection(self):
+        return psycopg2.connect(
+            host=os.environ.get("POSTGRES_HOST"),
+            dbname=os.environ.get("POSTGRES_DATABASE"),
+            user=os.environ.get("POSTGRES_USER"),
+            password=os.environ.get("POSTGRES_PASSWORD"),
+        )

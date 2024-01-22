@@ -32,6 +32,8 @@ class PaymentResponseFaker:
     def with_approved_transaction(payment_id: str, approval_code: str) -> services.PaymentResponse:
         return services.PaymentResponse(
             payment_id=payment_id,
+            response_code="00",
+            response_message="Approved or completed successfully",
             approval_code=approval_code,
             status="APPROVED"
         )
@@ -40,6 +42,8 @@ class PaymentResponseFaker:
     def with_rejected_transaction(payment_id: str) -> services.PaymentResponse:
         return services.PaymentResponse(
             payment_id=payment_id,
+            response_code="05",
+            response_message="Do not honor",
             approval_code="",
             status="REJECTED"
         )

@@ -32,6 +32,8 @@ class PaymentStatus(enum.Enum):
 class PaymentResponse(pydantic.BaseModel):
     payment_id: str
     status: PaymentStatus
+    response_code: str
+    response_message: str
     approval_code: str = ""
 
 
@@ -54,6 +56,8 @@ def process_payment(request: PaymentRequest,
         repository.update_payment(payment=payment)
         return PaymentResponse(
             payment_id=payment_id,
+            response_code=response.response_code,
+            response_message=response.response_message,
             approval_code=response.approval_code,
             status=PaymentStatus.APPROVED
         )
@@ -63,6 +67,8 @@ def process_payment(request: PaymentRequest,
     repository.update_payment(payment=payment)
     return PaymentResponse(
         payment_id=payment_id,
+        response_code=response.response_code,
+        response_message=response.response_message,
         approval_code=response.approval_code,
         status=PaymentStatus.REJECTED
     )
@@ -84,6 +90,7 @@ def _map_request_to_adapter_transaction(payment_id: str, request: PaymentRequest
     return adapters.Transaction(
         client_reference_id=payment_id,
         currency=request.currency,
+        merchant_id=request.merchant_id,
         total_amount=request.total_amount,
         tip=request.tip,
         vat=request.vat,

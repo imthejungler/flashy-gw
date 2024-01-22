@@ -24,6 +24,7 @@ class Card(pydantic.BaseModel):
 class Transaction(pydantic.BaseModel):
     client_id: str = "FLASHY_GW"
     client_reference_id: str
+    merchant_id: str
     currency: money.Currency
     total_amount: decimal.Decimal
     tip: decimal.Decimal
@@ -32,9 +33,9 @@ class Transaction(pydantic.BaseModel):
 
 
 class TransactionStatus(enum.Enum):
-    PENDING = enum.auto()
-    APPROVED = enum.auto()
-    REJECTED = enum.auto()
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class TransactionResponse(pydantic.BaseModel):
@@ -77,11 +78,10 @@ class FlashyCardNotPresentProvider(CardNotPresentProvider):
             client_id=transaction.client_id,
             client_reference_id=transaction.client_reference_id,
             merchant_id=transaction.merchant_id,
-            merchant_economic_activity=transaction.merchant_economic_activity,
             currency=transaction.currency,
             total_amount=transaction.total_amount,
             tip=transaction.tip,
-            taxes=transaction.taxes,
+            vat=transaction.vat,
             card=services.Card(
                 cardholder_name=transaction.card.cardholder_name,
                 expiration_month=transaction.card.expiration_month,
@@ -133,10 +133,10 @@ class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
                     status, card_masked_pan, payment_date)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
-                payment.merchant_id, payment.payment_id,
-                payment.currency.value, payment.total_amount, payment.tip, payment.vat,
-                payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
-                payment.status.value, payment.card.masked_pan, payment.payment_date)
+                (payment.merchant_id, payment.payment_id,
+                 payment.currency.value, payment.total_amount, payment.tip, payment.vat,
+                 payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
+                 payment.status.value, payment.card.masked_pan, payment.payment_date))
             conn.commit()
             cursor.close()
             return payment
@@ -155,12 +155,12 @@ class PostgresCardNotPresentPaymentRepository(CardNotPresentPaymentRepository):
             cursor.execute(
                 """
                     UPDATE payments SET 
-                    receipt_response_code=%s, payment_receipt_response_message=%s, 
-                    payment_receipt_approval_code=%s, status=%s,
-                    WHERE merchant_id=%s AND payment_id=%s
+                    receipt_response_code = %s, receipt_response_message = %s, 
+                    receipt_approval_code = %s, status = %s
+                    WHERE merchant_id = %s AND payment_id = %s
                 """,
-                payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
-                payment.status.value, payment.merchant_id, payment.payment_id)
+                (payment.receipt.response_code, payment.receipt.response_message, payment.receipt.approval_code,
+                 payment.status.value, payment.merchant_id, payment.payment_id))
             conn.commit()
             cursor.close()
 

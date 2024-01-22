@@ -15,13 +15,12 @@ class TransactionFake:
     def fake() -> services.TransactionRequest:
         return services.TransactionRequest(
             merchant_id="fake-merchant-id",
-            merchant_economic_activity="fake-merchant-economic-activity",
             client_id="fake-client-id",
             client_reference_id="fake-client-reference-id",
             currency=money.Currency.EUR,
             total_amount=decimal.Decimal("100.00"),
             tip=decimal.Decimal("0.00"),
-            taxes=[],
+            vat=decimal.Decimal("0.00"),
             card=services.Card(
                 cardholder_name="fake-cardholder-name",
                 expiration_month=datetime.today().month,
